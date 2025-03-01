@@ -1,0 +1,3 @@
+*.pyc
+config/.env
+logs/app.log
