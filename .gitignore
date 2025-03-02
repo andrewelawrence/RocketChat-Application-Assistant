@@ -1,4 +1,5 @@
 *.pyc
 logs/app.log
+logs\app.log
 config/.env
-config/.env
+config\.env
