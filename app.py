@@ -36,7 +36,7 @@ def main():
     # TODO: Welcome if user is new
     # TODO: Query LLMProxy
     
-    return jsonify({"text":"_\[markdown enabled\]_\n###Boilerplate init response - check back later."})
+    return jsonify({"text":"_markdown enabled_\n###Boilerplate init response - check back later."})
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
