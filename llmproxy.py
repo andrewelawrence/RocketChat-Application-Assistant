@@ -1,3 +1,8 @@
+# llmproxy.py
+
+# Last update: 03/01/2025
+# Taken from most recent repository update
+
 import os, json, requests
 
 # Read in config
