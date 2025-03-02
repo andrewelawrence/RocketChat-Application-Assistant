@@ -11,20 +11,20 @@ def parse_env_file(file_path="config/.env"):
                 env_vars[key] = val.strip().strip('"').strip("'")
     return env_vars
 
+# Note: keep the script as a arg because it must be run as a process in the
+# shell created below to have access to the envs.
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: run.sh <script.py> [script args...]")
-        sys.exit(1)
+        print("Something went wrong: len(sys.argv) < 2 but test.sh sets len(sys.argv) = 2.")
         
     script = sys.argv[1]
-    script_args = sys.argv[2:]
 
+    print("Loading Environment variables...")
     envs = parse_env_file()
     exports = " && ".join([f'export {k}="{v}"' for k,v in envs.items()])
     
     cmd = f"{exports} && python {script}"
-    if script_args:
-        cmd += " " + " ".join(script_args)
 
+    print(f"Flask app loading onto http://{envs["flaskHost"]}:{envs["flaskPort"]}/{envs["flaskEnv"]}...")
     subprocess.run(cmd, shell=True)
     
