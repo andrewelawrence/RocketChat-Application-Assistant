@@ -1,11 +1,13 @@
 # app.py
-# handles app routing, (TODO) redirecting to utils and chat functions
+# handles app routing, (TODO) redirecting to utils and chat functionality
 
 # Import statements
-import os
+import os, logging
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
+from utils import extract
+from chat import welcome, query
 
 _LOGGER = get_logger(__name__)
 _LOGGER.info("Application starting...")
@@ -32,11 +34,25 @@ def main():
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
         return jsonify({"error": "Invalid content type"}), 400
   
-    # TODO: User data collection
-    # TODO: Welcome if user is new
-    # TODO: Query LLMProxy
+    data = request.get_json() 
+    _LOGGER.info(f"HTTP POST Data: {data}")
     
-    return jsonify({"text":"_markdown enabled_\n###Boilerplate init response - check back later."})
+    # Extract relevant information
+    # (Extract also does some very important cataloguing.)
+    user, uid, new, sid, msg = extract(data)
+
+    # Do not respond to bots
+    if data.get("bot") or not msg:
+        return jsonify({"status": "ignored"})
+        
+    if new:
+        return welcome(uid, user)
+    else:
+        # TODO: actually impl query
+        return query(msg, sid)
+    
+        # TODO: delete in prod
+        # return jsonify({"text":"_markdown enabled_\n###Boilerplate init response - check back later."})
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
