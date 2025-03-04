@@ -31,26 +31,33 @@ def welcome(uid: str, user: str):
 # main query function
 # TODO: a lot of stuff lol
 def query(msg: str, sid: str):
+    # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
-
+    
+    _LOGGER.info(f"SID: {sid}")
+    _LOGGER.info(f"MSG: {msg}")
+    
     response = generate(
-        model = _MODEL,
-        system= system,
-        query= msg,
-        temperature= _TEMP,
-        lastk= _LAST_K,
-        rag_usage= _RAG,
-        rag_k= _RAG_K,
-        rag_threshold= _RAG_THR,
-        session_id= sid,
+        model=_MODEL,
+        system=system,
+        query=msg,
+        temperature=_TEMP,
+        lastk=_LAST_K,
+        rag_usage=_RAG,
+        rag_k=_RAG_K,
+        rag_threshold=_RAG_THR,
+        session_id=sid,
     )
 
-    # resp_text = response['response']
+    _LOGGER.info(f"RESP: {response}")
+    _LOGGER.info(f"RESP[RESP]: {response['response']}")
+
+    resp_text = response['response']
     # resp_context = response['rag???']
     
     # Send response back
-    rc_resp = {
-        "text": response['response']
-    }
+    # rc_resp = {
+    #     "text": resp_text
+    # }
 
-    return jsonify(rc_resp)
+    return jsonify({"text": resp_text})
