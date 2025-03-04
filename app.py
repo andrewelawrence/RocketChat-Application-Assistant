@@ -28,7 +28,7 @@ CORS(app) # Potentially unnecessary but ok to include.
 
 # Main app route; how to query the chatbot and get responses back.
 @app.route('/query', methods=['POST'])
-def main():  
+def main(): 
     # Enforce only JSON requests
     if not request.is_json:
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
@@ -49,10 +49,10 @@ def main():
         return welcome(uid, user)
     else:
         # TODO: actually impl query
-        return query(msg, sid)
+        # return query(msg, sid)
     
         # TODO: delete in prod
-        # return jsonify({"text":"_markdown enabled_\n###Boilerplate init response - check back later."})
+        return jsonify({"text":"_dev test response_\nBoilerplate init response - check back later."})
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
@@ -82,4 +82,3 @@ if __name__ == "__main__":
         app.run(debug=True, use_reloader=True, host=_DEV_HOST, port=_DEV_PORT)
     else:
         app.run(debug=True)
-        
