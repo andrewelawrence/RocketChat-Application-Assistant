@@ -34,6 +34,7 @@ def main():
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
         return jsonify({"error": "Invalid content type"}), 400
     
+    _LOGGER.info(f"Request type: {type(request)}")
     _LOGGER.info(f"HTTP POST Request: {request}")
     data = request.get_json() 
     _LOGGER.info(f"HTTP POST Data: {data}")
@@ -49,6 +50,8 @@ def main():
     if new:
         return welcome(uid, user)
     else:
+        # TODO: handle attached files
+        
         # TODO: actually impl query
         return query(msg, sid)
     
