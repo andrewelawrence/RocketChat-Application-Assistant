@@ -82,25 +82,22 @@
     <h2>Koyeb-mini-1 Dev Environment</h2>
     <div id="chatbox"></div>
     <div id="input-container">
-      <input
-        type="text"
-        id="input"
-        placeholder="Type a message..."
-      />
+      <input type="text" id="input" placeholder="Type a message..." />
       <button onclick="sendMessage()">Send</button>
     </div>
 
     <script>
       const converter = new showdown.Converter();
-      
       async function sendMessage() {
         let inputField = document.getElementById("input");
         let chatbox = document.getElementById("chatbox");
-        let message = inputField.value.trim();
+        let text = inputField.value.trim();
 
-        if (message === "") return;
+        let user_id = "DEV";
+        let user_name = "DEV";
+        if (text === "") return;
 
-        chatbox.innerHTML += `<div class='message user-message'><strong>You:</strong> ${message}</div>`;
+        chatbox.innerHTML += `<div class='message user-message'><strong>You:</strong> ${text}</div>`;
         inputField.value = "";
         chatbox.scrollTop = chatbox.scrollHeight;
 
@@ -108,28 +105,38 @@
           let response = await fetch("http://127.0.0.1:5000/query", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: message }),
+            body: JSON.stringify({
+              user_id: user_id,
+              user_name: user_name,
+              text: text,
+            }),
           });
 
           let data = await response.json();
           if (!data || !data.text) throw new Error("Invalid response format");
 
-          let markdownHTML = converter.makeHtml(data.text);
-
-          chatbox.innerHTML += `<div class='message bot-message'><strong>Bot:</strong> ${markdownHTML}</div>`;
-          chatbox.scrollTop = chatbox.scrollHeight;
+          try {
+            let markdownHTML = converter.makeHtml(data.text);
+            chatbox.innerHTML += `<div class='message bot-message'><strong>Bot:</strong> ${markdownHTML}</div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+          } catch (error) {
+            chatbox.innerHTML += `<div class='message bot-message'><strong>Bot:</strong> ${data.text}</div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+          }
         } catch (error) {
           console.error("Error:", error);
           chatbox.innerHTML += `<div class='message error-message'><strong>Error:</strong> Unable to get response.</div>`;
         }
       }
 
-      document.getElementById("input").addEventListener("keypress", function(event) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          sendMessage();
-        }
-      });
+      document
+        .getElementById("input")
+        .addEventListener("keypress", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            sendMessage();
+          }
+        });
     </script>
   </body>
 </html>
