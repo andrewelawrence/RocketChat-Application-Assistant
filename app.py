@@ -33,7 +33,8 @@ def main():
     if not request.is_json:
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
         return jsonify({"error": "Invalid content type"}), 400
-  
+    
+    _LOGGER.info(f"HTTP POST Request: {request}")
     data = request.get_json() 
     _LOGGER.info(f"HTTP POST Data: {data}")
     
