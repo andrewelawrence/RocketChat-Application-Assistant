@@ -49,6 +49,9 @@ def query(msg: str, sid: str):
         session_id=sid,
     )
 
+    _LOGGER.info(f"RESP: {response}")
+    _LOGGER.info(f"RESP[RESP]: {response['response']}")
+
     resp_text = response['response']
     # resp_context = response['rag???']
     
