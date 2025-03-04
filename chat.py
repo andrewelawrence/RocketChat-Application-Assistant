@@ -34,8 +34,8 @@ def query(msg: str, sid: str):
     # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
     
-    _LOGGER.info("SID:", sid)
-    _LOGGER.info("MSG:", msg)
+    _LOGGER.info(f"SID: {sid}")
+    _LOGGER.info(f"MSG: {msg}")
     
     response = generate(
         model=_MODEL,
