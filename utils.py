@@ -67,7 +67,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         if "Item" in resp:
             sid = resp["Item"]["sid"]
             _LOGGER.info(f"User <{uid}> has existing SID <{sid}>")
-            _new_sid()
+            # _new_sid() - generates a new sid even though the free sid should alr exist.s
             return (str(sid), False)
 
         # If not, the user is new and so we return True for second part of Tuple
@@ -85,6 +85,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         # Store new SID for the user
         _new_sid()
         return (str(sid), True)
+    
     except Exception as e:
         _LOGGER.error(f"Error accessing DynamoDB for SID: {e}", exc_info=True)
         return (str(""), False)
