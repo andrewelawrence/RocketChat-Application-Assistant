@@ -24,7 +24,9 @@ except:
     _ENV = ""
 
 app = Flask(__name__)
-CORS(app) # Potentially unnecessary but ok to include.
+
+if _ENV == "dev":
+    CORS(app) # Potentially unnecessary but ok to include.
 
 # Main app route; how to query the chatbot and get responses back.
 @app.route('/query', methods=['POST'])
