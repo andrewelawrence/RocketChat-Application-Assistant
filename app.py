@@ -49,10 +49,10 @@ def main():
         return welcome(uid, user)
     else:
         # TODO: actually impl query
-        # return query(msg, sid)
+        return query(msg, sid)
     
         # TODO: delete in prod
-        return jsonify({"text":"_dev test response_\nBoilerplate init response - check back later."})
+        # return jsonify({"text":"_dev test response_\nBoilerplate init response - check back later."})
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
