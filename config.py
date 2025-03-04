@@ -9,7 +9,7 @@ _KOYEB = os.environ.get("koyebAppId") not in (None, "None")
 
 # Configure the root logger
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s -- %(message)s",
     handlers=[
         logging.StreamHandler() if _KOYEB else TimedRotatingFileHandler(_DEFAULT_PATH, when="midnight", interval=1, backupCount=7)
