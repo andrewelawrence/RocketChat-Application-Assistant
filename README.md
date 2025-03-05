@@ -74,5 +74,3 @@ Make sure you have updated your Koyeb Secrets!
    Equip the chatbot to autonomously suggest and redirect users to the Tufts Career Center for further help if needed.
 - **Multiple Repositories per User:**  
    Allow users to manage distinct, self-contained job application "repositories". Users can select an application to continue or create a new one.
-
-_Last edit: Andrew Lawrence 03/01/2025_
