@@ -1,5 +1,5 @@
 #!/bin/bash
-# load_envs.sh
+# test.sh
 
 if [ $# -gt 1 ]; then
   echo "Usage: $0"
