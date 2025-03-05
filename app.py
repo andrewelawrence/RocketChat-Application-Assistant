@@ -60,6 +60,54 @@ def main():
         # ideally we could save page contents as a pdf and then upload that pdf
         # to the session for RAG but for now let's just store the contents in a message
         # then query the chatbot telling it to remember the page contents
+
+        # import urllib.request
+        # import re
+        # from html.parser import HTMLParser
+
+        # def fetch_html_content(url):
+        #     """Fetch HTML content from a given URL using urllib."""
+        #     try:
+        #         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        #         req = urllib.request.Request(url, headers=headers)
+
+        #         with urllib.request.urlopen(req) as response:
+        #             html = response.read().decode('utf-8')  
+        #         return html
+        #     except Exception as e:
+        #         _LOGGER.error(f"Error fetching URL {url}: {e}")
+        #         return None
+
+        # class HTMLTextExtractor(HTMLParser):
+        #     """Custom HTML Parser to extract text content from HTML."""
+        #     def __init__(self):
+        #         super().__init__()
+        #         self.text = []
+
+        #     def handle_data(self, data):
+        #         self.text.append(data)
+
+        #     def get_text(self):
+        #         return ' '.join(self.text)
+
+        # def extract_text_from_html(html_content):
+        #     """Extract readable text from HTML using an HTML parser."""
+        #     try:
+        #         # Remove script and style elements using regex
+        #         html_content = re.sub(r'<(script|style).*?>.*?</\1>', '', html_content, flags=re.DOTALL)
+
+        #         # Parse the cleaned HTML and extract text
+        #         parser = HTMLTextExtractor()
+        #         parser.feed(html_content)
+
+        #         # Remove excessive whitespace
+        #         clean_text = ' '.join(parser.get_text().split())
+
+        #         return clean_text
+        #     except Exception as e:
+        #         _LOGGER.error(f"Error parsing HTML: {e}")
+        #         return None
+
         
         # TODO: module to handle attached files and upload them to session
 
