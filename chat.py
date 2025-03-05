@@ -48,12 +48,25 @@ def query(msg: str, sid: str,
 
     if has_urls:
         if not url_uploads_failed:
-            system += "\n\n\nThe user sent urls, their site content has been uploaded to the session. It may take some time to process them. Mention this to the user"
+            system += (
+                """
+                \n\n\n
+                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
+                Use specific information from these documents when questions are about their contents.
+                """
+            )
         else:
             system += (
-                "\n\n\nThe user sent urls but the following sites failed to upload their page content: "
-                + ", ".join([f"[{url}]({url})" for url in urls_failed])
-                + "\nMention this to the user and tell them to consider uploading the pages as PDFs._"
+                """
+                \n\n\n
+                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
+                Use specific information from these documents when questions are about their contents.
+                The following sites the user sent failed to upload their page content to the session: 
+                """
+                + 
+                ", ".join([f"[{url}]({url})" for url in urls_failed])
+                + 
+                "\nMention the specific urls failed to the user and tell them to consider uploading the pages as PDFs._"
             )
 
     response = generate(
@@ -70,7 +83,7 @@ def query(msg: str, sid: str,
 
     _LOGGER.info(f"RESP: {response}")
 
-    resp_text = response['response']
+    resp_text = response['response'] + "\n\nRag Context:\n" + response['rag_context']
 
     # if has_urls:
     #     if not url_uploads_failed:
