@@ -29,7 +29,6 @@ def welcome(uid: str, user: str):
     return jsonify({"text": welcome})
 
 # main query function
-# TODO: a lot of stuff lol
 def query(msg: str, sid: str):
     # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
@@ -59,5 +58,7 @@ def query(msg: str, sid: str):
     # rc_resp = {
     #     "text": resp_text
     # }
+    
+    # TODO: query the chatbot to see if we should reach out to Career Center
 
     return jsonify({"text": resp_text})
