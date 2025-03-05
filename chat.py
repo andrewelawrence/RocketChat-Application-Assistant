@@ -1,7 +1,5 @@
 # chat.py
-
-# TODO: implement the real query architecture in this module. 
-# (resume uploading, etc.)
+# TODO: see query(). 
 
 import os
 from flask import jsonify
@@ -32,13 +30,32 @@ def welcome(uid: str, user: str):
     return jsonify({"text": welcome})
 
 # main query function
-def query(msg: str, sid: str):
+def query(msg: str, sid: str, 
+          has_urls: bool, url_uploads_failed: bool, urls_failed: list):
+    """
+    TODO: flesh out what we want for capabilities
+    file uploading handled, providing sources, linking to career center, etc.
+    
+    system file def needs to be fleshed out more to be more rigorous and so the
+    AI knows what capabilities it has
+    """
+    
     # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
-    
-    _LOGGER.info(f"SID: {sid}")
-    _LOGGER.info(f"MSG: {msg}")
-    
+        
+    # TODO Add context to the system for this specific message:
+    # (ie. did the url uploads work)
+
+    if has_urls:
+        if not url_uploads_failed:
+            system += "\n\n\nThe user sent urls, their site content has been uploaded to the session. It may take some time to process them. Mention this to the user"
+        else:
+            system += (
+                "\n\n\nThe user sent urls but the following sites failed to upload their page content: "
+                + ", ".join([f"[{url}]({url})" for url in urls_failed])
+                + "\nMention this to the user and tell them to consider uploading the pages as PDFs._"
+            )
+
     response = generate(
         model=_MODEL,
         system=system,
@@ -52,19 +69,24 @@ def query(msg: str, sid: str):
     )
 
     _LOGGER.info(f"RESP: {response}")
-    _LOGGER.info(f"RESP[RESP]: {response['response']}")
 
     resp_text = response['response']
-    # resp_context = response['rag???']
-    
-    # Send response back
-    # rc_resp = {
-    #     "text": resp_text
-    # }
+
+    # if has_urls:
+    #     if not url_uploads_failed:
+    #         resp_text += "\n\n_All site content uploaded - it may take some time to process them._"
+    #     else:
+    #         resp_text += (
+    #             "\n\n_Following site content failed upload: "
+    #             + ", ".join([f"[{url}]({url})" for url in urls_failed])
+    #             + "\nConsider uploading the pages as PDFs._"
+    #         )
+    return jsonify({"text": resp_text})
+
     # TODO: query the chatbot to see if we should reach out to Career Center'
     # Initialize user interaction tracking if new session
     # if sid not in USER_INTERACTIONS:
-        USER_INTERACTIONS[sid] = {"career_mentions": 0, "total_messages": 0}
+    # USER_INTERACTIONS[sid] = {"career_mentions": 0, "total_messages": 0}
 
     # Update interaction count
     # USER_INTERACTIONS[sid]["total_messages"] += 1
@@ -135,7 +157,3 @@ def query(msg: str, sid: str):
     # }
 
     # return jsonify(response)
-    
-
-
-    return jsonify({"text": resp_text})
