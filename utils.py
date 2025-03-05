@@ -1,10 +1,12 @@
 # utils.py
+# TODO: see upload() & extract()
 
-# TODO: implement uploading files to S3
-
-import os, re, time, hashlib, boto3
+import os, re, time, hashlib, boto3, requests
 from config import get_logger
 from llmproxy import upload, pdf_upload, text_upload
+from urlextract import URLExtract
+from requests_html import HTMLSession
+from bs4 import BeautifulSoup
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -23,19 +25,6 @@ _TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 # restrict valid uids
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
 
-
-# used in query to load system prompt
-def safe_load_text(filepath : str) -> dict:
-    """Safely read in file contents; return empty string if file not found."""
-    if not os.path.exists(filepath):
-        return ""
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return f.read()    
-    except Exception as e:
-        _LOGGER.error(f"[FILE SYSTEM] Could not load text from {filepath}: {e}", exc_info=True)
-        return ""
-    
 def _gen_sid() -> str:
     """Generate a hashed SID from the epoch time (or any other scheme)."""
     _HASH.update(str(time.time()).encode('utf-8'))
@@ -135,15 +124,140 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str) -> bool:
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
         return False   
 
-def upload(sid : str) -> bool:
-    """Upload any file type"""
+def _upload_page(sid: str, url: str, page: str) -> bool:
+    """Upload page contents to session RAG as text files"""
+    try:
+        text_upload(text=page, description=url, session_id=sid)
+        _LOGGER.info(f"Page {url} successfully uploaded to session: {sid}")
+        return True
+    except Exception as e:
+        _LOGGER.error(f"Exception raised when uploading page: {url}")  
+        return False
+
+def _extract_urls(msg: str) -> list:
+    """Extract URLs in many different formats from the message."""
+    try:
+        extractor = URLExtract()
+        urls = extractor.find_urls(msg)
+        _LOGGER.info(f"Extracted urls: {urls}")
+        return urls
+    except Exception as e:
+        _LOGGER.warning(f"An error occurred when extracting urls: {e}")
+        return []
+
+def _scrape_requests_html(url: str) -> str:
+    """
+    Scraps web content using requests-html. 
+    Raises an HTTPError if the status isn't successful.
+    Returns the text as a string.
     
-    # TODO: uploading user files into s3 buckets for storage and auditing
+    Note that error is handled in _robust_scrape
+    """
+    session = HTMLSession()
+    response = session.get(url)
+    response.raise_for_status()
+    _LOGGER.info(f"{url} scraped with requests-html")
+    return response.html.text
+
+def _scrape_bs4(url: str) -> str:
+    """
+    Fetch the text content of a webpage using requests + BeautifulSoup.
+    Raises an HTTPError if the status isn't successful.
+    Returns the text as a string.
     
-    return False
+    Note that error is handled in _robust_scrape
+    """
+    response = requests.get(url)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    _LOGGER.info(f"{url} scraped with BeautifulSoup")
+    return soup.get_text()
+
+def _robust_scrape(url: str) -> str | None:
+    """
+    Attempts to scrape using requests-html first.
+    If that fails, uses requests + BeautifulSoup.
+    If both fail, returns None.
+    """
+    try:
+        return _scrape_requests_html(url)
+    except Exception as e:
+        _LOGGER.error(f"Requests-html failed to scrape {url}: {e}")
+        pass
+    
+    # If requests-html fails, try BeautifulSoup
+    try:
+        return _scrape_bs4(url)
+    except Exception as e:
+        _LOGGER.error(f"BeautifulSoup failed to scrape {url}: {e}")
+        pass
+    
+    return None
+
+# used in query to load system prompt
+def safe_load_text(filepath : str) -> dict:
+    """Safely read in file contents; return empty string if file not found."""
+    if not os.path.exists(filepath):
+        return ""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()    
+    except Exception as e:
+        _LOGGER.error(f"Could not load text from {filepath}: {e}", exc_info=True)
+        return ""
+    
+def scrape(sid: str, msg: str) -> tuple:
+    """
+    returns status of if any url scrape failed, and a list of failed urls
+    """
+    try:
+        urls = _extract_urls(msg)
+        
+        has_urls = bool(urls)
+        failed = False
+        failed_urls = list()
+        
+        for url in urls:
+            page = _robust_scrape(url)
+            
+            # TODO: delete for prod - too much data logged
+            _LOGGER.info(f"Page content: {page}")
+            
+            if page == None: # ie. web-scraping failed
+                failed = True
+                failed_urls.append("url")
+            else:
+                _upload_page(sid, url, page)
+
+        return (has_urls, failed, failed_urls)
+
+    except Exception as e:
+        _LOGGER
+        return (True, True, "An unknown error occurred when accessing sites; try uploading site content as a PDF.")
+
+def upload(sid : str) -> tuple:
+    """
+    Upload any file type to chatbot session using llmproxy upload function.
+    
+    This enables excellent flexability but we must transform the attached file
+    to a multi-part form which will require a little research.
+    
+    Returns true if upload was successful,
+    
+    # TODO: update params, actually impl. function
+    """
+    
+    failed = False
+    failed_uploads = list()
+    
+    return (failed, failed_uploads) 
 
 def extract(data) -> tuple:
-    """Extract user information and store conversation to DynamoDB."""
+    """
+    Extract user information and store conversation to DynamoDB.
+    
+    TODO: extract attached files & other media + upload metadata to the table
+    """
     
     if not isinstance(data, dict):
         _LOGGER.warning("extract() called with non-dict data.")
