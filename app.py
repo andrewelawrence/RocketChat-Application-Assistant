@@ -63,7 +63,7 @@ def main():
 
         # TODO: see chat.py query function
         return query(msg, sid, 
-                     has_urls, url_uploads_failed, urls_failed)
+                     has_urls, urls_failed)
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
