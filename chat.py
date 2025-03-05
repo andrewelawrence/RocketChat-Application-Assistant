@@ -83,23 +83,23 @@ def query(msg: str, sid: str,
     resp_text = response['response'] + "\n\n[DEV] Rag Context:\n" + response['rag_context']
 
     # "Contact Career Center" button with every response
-    # response = {
-        # "text": resp_text,
-        # "attachments": [
-            # {
-                # "title": "Need more career support?",
-                # "text": "Click below to contact the Career Center.",
-                # "actions": [
-                    # {
-                        # "type": "button",
-                        # "text": "📅 Schedule a Meeting",
-                        # "msg": "career_support_clicked",
-                        # "url": "https://careers.tufts.edu/channels/see-an-advisor/",
-                        # "msg_in_chat_window": False
-                    # }
-                # ]
-            # }
-        # ]
-    # }
+    response = {
+        "text": resp_text,
+        "attachments": [
+            {
+                "title": "Need more career support?",
+                "text": "Click below to contact the Tufts Career Center.",
+                "actions": [
+                    {
+                        "type": "button",
+                        "text": "📅 Schedule a Meeting",
+                        "msg": "career_support_clicked",
+                        "url": "https://careers.tufts.edu/channels/see-an-advisor/",
+                        "msg_in_chat_window": False
+                    }
+                ]
+            }
+        ]
+    }
 
-    # return jsonify(response)
+    return jsonify(response)
