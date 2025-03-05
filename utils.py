@@ -211,7 +211,7 @@ def scrape(sid: str, msg: str) -> tuple:
     returns status of if any url scrape failed, and a list of failed urls
     """
     try:
-        urls = _extract_urls(msg)
+        urls = list(_extract_urls(msg))
         
         has_urls = bool(urls)
         failed = False
