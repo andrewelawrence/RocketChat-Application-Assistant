@@ -31,7 +31,7 @@ def welcome(uid: str, user: str):
 
 # main query function
 def query(msg: str, sid: str, 
-          has_urls: bool, url_uploads_failed: bool, urls_failed: list):
+          has_urls: bool, urls_failed: list):
     """
     TODO: flesh out what we want for capabilities
     file uploading handled, providing sources, linking to career center, etc.
@@ -47,15 +47,7 @@ def query(msg: str, sid: str,
     # (ie. did the url uploads work)
 
     if has_urls:
-        if not url_uploads_failed:
-            system += (
-                """
-                \n\n\n
-                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
-                Use specific information from these documents when questions are about their contents.
-                """
-            )
-        else:
+        if bool(urls_failed):
             system += (
                 """
                 \n\n\n
@@ -67,6 +59,14 @@ def query(msg: str, sid: str,
                 ", ".join([f"[{url}]({url})" for url in urls_failed])
                 + 
                 "\nMention the specific urls failed to the user and tell them to consider uploading the pages as PDFs._"
+            )  
+        else:
+            system += (
+                """
+                \n\n\n
+                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
+                Use specific information from these documents when questions are about their contents.
+                """
             )
 
     response = generate(
@@ -83,7 +83,7 @@ def query(msg: str, sid: str,
 
     _LOGGER.info(f"RESP: {response}")
 
-    resp_text = response['response'] + "\n\nRag Context:\n" + response['rag_context']
+    resp_text = response['response'] + "\n\n[DEV] Rag Context:\n" + response['rag_context']
 
     # if has_urls:
     #     if not url_uploads_failed:
