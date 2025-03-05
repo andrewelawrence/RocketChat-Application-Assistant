@@ -57,6 +57,7 @@ def main():
     else:
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
+        _LOGGER.info(f"URL Extraction infO:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
         
         # TODO: If files were attached, load them into the session
 
