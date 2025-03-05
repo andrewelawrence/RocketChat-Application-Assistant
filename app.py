@@ -52,14 +52,20 @@ def main():
     if new:
         return welcome(uid, user)
     else:
-        # TODO: handle attached files
+        # TODO: module for parsing message to see if it contains a link
+        # it should find every link
+
+        # TODO: module for opening link and returning html/text contents
+        # https://www.askpython.com/python/examples/read-html-from-url
+        # ideally we could save page contents as a pdf and then upload that pdf
+        # to the session for RAG but for now let's just store the contents in a message
+        # then query the chatbot telling it to remember the page contents
         
-        # TODO: actually impl query
+        # TODO: module to handle attached files and upload them to session
+
+        # TODO: actually impl query - see query for another todo
         return query(msg, sid)
     
-        # TODO: delete in prod
-        # return jsonify({"text":"_dev test response_\nBoilerplate init response - check back later."})
-
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
 def dev():
