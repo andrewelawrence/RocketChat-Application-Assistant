@@ -29,7 +29,7 @@ def welcome(uid: str, user: str):
         "text": welcome,
         "attachments": [
             {
-                # "title": "",
+                "title": "",
                 "actions": [
                     {
                         "type": "button",
@@ -113,7 +113,7 @@ def query(msg: str, sid: str,
         "text": resp_text,
         "attachments": [
             {
-                # "title": "",
+                "title": "",
                 "actions": [
                     {
                         "type": "button",
