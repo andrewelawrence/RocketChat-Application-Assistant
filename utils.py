@@ -379,7 +379,7 @@ def send_files(data):
     room_id = data.get("channel_id", "")
     # A file is sent by the user
     if ("message" in data) and ('file' in data['message']):
-        print(f"INFO - detected file")
+        _LOGGER.info(f"INFO - detected file")
         saved_files = []
 
         for file_info in data["message"]["files"]:
@@ -392,6 +392,7 @@ def send_files(data):
             if file_path:
                 saved_files.append(file_path)
             else:
+                _LOGGER.info(f"Failed to download file")
                 return jsonify({"error": "Failed to download file"}), 500
             
         
@@ -399,6 +400,8 @@ def send_files(data):
         message_text = f"File uploaded by {user}"
         for saved_file in saved_files:
             send_message_with_file(room_id, message_text, saved_file)
+            _LOGGER.info(f"Sending message with {saved_file}\n")
 
+        _LOGGER.info(f"Files processed and re-sent successfully!")
         return jsonify({"text": "Files processed and re-sent successfully!"})
     

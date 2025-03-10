@@ -53,8 +53,16 @@ def main():
     # Handle message
     if new:
         return welcome(uid, user)
-    elif ("message" in data) and ('file' in data['message']):
-        return send_files(data)
+    elif "message" in data and "files" in data["message"]:
+        _LOGGER.info(f"🚀 Detected file upload from {user}")
+    
+        # Call the function to handle file uploads
+        file_success = send_files(data)
+
+        if file_success:
+            return jsonify({"text": "✅ File received and stored successfully!"})
+        else:
+            return jsonify({"text": "⚠️ I encountered an issue saving the file. Please try again."})
     elif msg == "resume_create":
         return jsonify({"text": "[DEV] You're now creating a new resume"})
     elif msg == "resume_edit":
@@ -62,7 +70,7 @@ def main():
     else:
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
-        _LOGGER.info(f"URL Extraction infO:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
+        _LOGGER.info(f"URL Extraction info:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
         
         # TODO: If files were attached, load them into the session
         # reminder, session_id = sid
