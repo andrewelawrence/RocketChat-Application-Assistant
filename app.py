@@ -54,6 +54,10 @@ def main():
     # Handle message
     if new:
         return welcome(uid, user)
+    elif msg == "resume_create":
+        return jsonify({"text": "You're now creating a new resume"})
+    elif msg == "resume_edit":
+        return jsonify({"text": "You're now editing an existing resume"})
     else:
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)

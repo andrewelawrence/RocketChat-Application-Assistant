@@ -24,7 +24,34 @@ def welcome(uid: str, user: str):
         welcome = f.read()
     
     _LOGGER.info(f"Welcomed {user} (uid: {uid})")
-    return jsonify({"text": welcome})
+
+    response = {
+        "text": welcome,
+        "attachments": [
+            {
+                # "title": "",
+                "actions": [
+                    {
+                        "type": "button",
+                        "text": "📑 Existing resume",
+                        "msg": "resume_edit",
+                        "msg_in_chat_window": False,
+                        "msg_processing_type": "sendMessage"
+                    },
+                    {
+                        "type": "button",
+                        "text": "🆕 New resume",
+                        "msg": "resume_create",
+                        "msg_in_chat_window": False,
+                        "msg_processing_type": "sendMessage"
+                    }
+                ]
+            }
+        ]
+    }
+    return jsonify(response)
+
+
 
 # main query function
 def query(msg: str, sid: str, 
@@ -82,20 +109,25 @@ def query(msg: str, sid: str,
 
     resp_text = response['response'] + "\n\n[DEV] Rag Context:\n" + response['rag_context']
 
-    # "Contact Career Center" button with every response
     response = {
         "text": resp_text,
         "attachments": [
             {
-                "title": "Need more career support?",
-                "text": "Click below to contact the Tufts Career Center.",
+                # "title": "",
                 "actions": [
                     {
                         "type": "button",
-                        "text": "📅 Schedule a Meeting",
-                        "msg": "career_support_clicked",
-                        "url": "https://careers.tufts.edu/channels/see-an-advisor/",
-                        "msg_in_chat_window": False
+                        "text": "📑 Existing resume",
+                        "msg": "resume_edit",
+                        "msg_in_chat_window": False,
+                        "msg_processing_type": "sendMessage"
+                    },
+                    {
+                        "type": "button",
+                        "text": "🆕 New resume",
+                        "msg": "resume_create",
+                        "msg_in_chat_window": False,
+                        "msg_processing_type": "sendMessage"
                     }
                 ]
             }
