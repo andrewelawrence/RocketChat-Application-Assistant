@@ -35,14 +35,14 @@ def welcome(uid: str, user: str):
                         "type": "button",
                         "text": "📑 Existing resume",
                         "msg": "resume_edit",
-                        "msg_in_chat_window": False,
+                        "msg_in_chat_window": True,
                         "msg_processing_type": "sendMessage"
                     },
                     {
                         "type": "button",
                         "text": "🆕 New resume",
                         "msg": "resume_create",
-                        "msg_in_chat_window": False,
+                        "msg_in_chat_window": True,
                         "msg_processing_type": "sendMessage"
                     }
                 ]
@@ -119,14 +119,14 @@ def query(msg: str, sid: str,
                         "type": "button",
                         "text": "📑 Existing resume",
                         "msg": "resume_edit",
-                        "msg_in_chat_window": False,
+                        "msg_in_chat_window": True,
                         "msg_processing_type": "sendMessage"
                     },
                     {
                         "type": "button",
                         "text": "🆕 New resume",
                         "msg": "resume_create",
-                        "msg_in_chat_window": False,
+                        "msg_in_chat_window": True,
                         "msg_processing_type": "sendMessage"
                     }
                 ]
