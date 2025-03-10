@@ -5,7 +5,7 @@ import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
-from utils import extract, scrape
+from utils import extract, scrape, send_files
 from chat import welcome, query
 
 # setup logging
@@ -46,24 +46,26 @@ def main():
     # TODO: extract any files
     user, uid, new, sid, msg = extract(data)
 
-    # Do not respond to bots
-    # Done after data collection so bot interactions are stored
+    # Ignore bot messages
     if data.get("bot") or not msg:
         return jsonify({"status": "ignored"})
         
     # Handle message
     if new:
         return welcome(uid, user)
+    elif ("message" in data) and ('file' in data['message']):
+        return send_files(data)
     elif msg == "resume_create":
-        return jsonify({"text": "You're now creating a new resume"})
+        return jsonify({"text": "[DEV] You're now creating a new resume"})
     elif msg == "resume_edit":
-        return jsonify({"text": "You're now editing an existing resume"})
+        return jsonify({"text": "[DEV] You're now editing an existing resume"})
     else:
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
         _LOGGER.info(f"URL Extraction infO:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
         
         # TODO: If files were attached, load them into the session
+        # reminder, session_id = sid
 
         # TODO: see chat.py query function
         return query(msg, sid, 
