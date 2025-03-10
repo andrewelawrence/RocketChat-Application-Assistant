@@ -124,6 +124,25 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str) -> bool:
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
         return False   
 
+# Tool to return the webpage based on URL
+# def get_page(url):
+
+#     if response.status_code == 200:
+#         soup = BeautifulSoup(response.text, "html.parser")
+        
+#         # Extracting the main content (removing scripts, styles, and ads)
+#         for unwanted in soup(["script", "style", "header", "footer", "nav", "aside"]):
+#             unwanted.extract()  # Remove these elements
+
+#         text = soup.get_text(separator=" ", strip=True)  # Extract clean text
+
+#         # Limit length to avoid very long output
+#         clean_text = " ".join(text.split())  # First 500 words
+#         return clean_text
+        
+#     else:
+#         return f"Failed to fetch {url}, status code: {response.status_code}"
+
 def _upload_page(sid: str, url: str, page: str) -> bool:
     """Upload page contents to session RAG as text files"""
     try:
@@ -167,29 +186,44 @@ def _scrape_bs4(url: str) -> str:
     
     Note that error is handled in _robust_scrape
     """
-    response = requests.get(url)
-    response.raise_for_status()
+    
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}    
+    response = requests.get(url, headers=headers)
+
+    response.raise_for_status() # raises of 400 or 500 error in response
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Extracting the main content (removing scripts, styles, and ads)
+    for unwanted in soup(["script", "style", "header", "footer", "nav", "aside"]):
+        unwanted.extract()  # Remove these elements
+
+    text = soup.get_text(separator=" ", strip=True)  # Extract clean text
+    
+    # Limit length to avoid very long output
+    clean_text = " ".join(text.split())  # First 500 words
+    return clean_text
+
     soup = BeautifulSoup(response.text, "html.parser")
     _LOGGER.info(f"{url} scraped with BeautifulSoup")
     return soup.get_text()
 
 def _robust_scrape(url: str) -> str | None:
     """
-    Attempts to scrape using requests-html first.
-    If that fails, uses requests + BeautifulSoup.
+    Attempts to scrape using BeautifulSoup first,
+    If that fails, uses requests-html.
     If both fail, returns None.
     """
-    try:
-        return _scrape_requests_html(url)
-    except Exception as e:
-        _LOGGER.error(f"Requests-html failed to scrape {url}: {e}")
-        pass
-    
-    # If requests-html fails, try BeautifulSoup
     try:
         return _scrape_bs4(url)
     except Exception as e:
         _LOGGER.error(f"BeautifulSoup failed to scrape {url}: {e}")
+        pass
+
+    try:
+        return _scrape_requests_html(url)
+    except Exception as e:
+        _LOGGER.error(f"Requests-html failed to scrape {url}: {e}")
         pass
     
     return None
