@@ -52,25 +52,8 @@ Make sure you have updated your Koyeb Secrets!
 ## Architecture
 - **Front-end:** Rocket.Chat
 - **Hosting:** Koyeb  
-- **Database:** AWS DynamoDB & S3  
+- **Database:** AWS DynamoDB
 - **Core Packages:**  
   - **LLMProxy:** AI Chatbot  
   - **boto3:** AWS integration
   - **Flask:** Web-app structure & testing  
-
-## Features
-### Current Capabilities
-- **Koyeb Deploy & Rocket.Chat Integration**  
-- **Test/Dev Environment**
-
-### Roadmap
-- **User Interaction Logging:**  
-  Interfaces with AWS S3 and DynamoDB to store user data and log interactions.
-- **AI Chatbot Integration:**  
-  Uses LLMProxy to handle AI responses. Chatbots are programmed with agency — if they detect a need, they can suggest human intervention via the Tufts Career Center.   
-- **Contextual Conversations:**  
-   Enable users to add context to their conversations by uploading resumes, entering job application details, or linking to external applications.
-- **Proactive Human Assistance:**  
-   Equip the chatbot to autonomously suggest and redirect users to the Tufts Career Center for further help if needed.
-- **Multiple Repositories per User:**  
-   Allow users to manage distinct, self-contained job application "repositories". Users can select an application to continue or create a new one.
