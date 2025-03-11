@@ -4,7 +4,7 @@
 import os, re, time, hashlib, boto3, requests
 from config import get_logger
 from llmproxy import upload, pdf_upload, text_upload
-from flask import jsonify
+from flask import jsonify, session
 from urlextract import URLExtract
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
@@ -413,4 +413,78 @@ def send_files(data, sid):
 
         _LOGGER.info(f"Files processed and re-sent successfully!")
         return jsonify({"text": "Files processed and re-sent successfully!"})
+
+
+    # Rocket Chat Message Sending
+
+def update_resume_summary(sid, section, content):
+    """
+    Updates the structured resume summary stored in session data.
+    Keeps track of completed resume sections and content.
+    """
+    if sid not in session:
+        session[sid] = {"resume_summary": {}}
+
+    # Store the new content for the section
+    session[sid]["resume_summary"][section] = content
+
+    # Generate formatted summary to send later
+    formatted_summary = "\n".join(
+        [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
+    )
+
+    return formatted_summary
+
+CAREER_SPECIALIST = "@michael.brady631208"  # Change this to the real username
+
+def send_resume_for_review(sid):
+    """
+    Sends the formatted resume summary to a career specialist.
+    """
+    summary = session.get(sid, {}).get("resume_summary", {})
+
+    if not summary:
+        return {"error": "No resume summary found!"}
+
+    formatted_summary = "\n".join(
+        [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
+    )
+
+    message_text = f"🔎 **Resume Review Request** 🔎\n\nHere’s what we’ve covered so far:\n\n{formatted_summary}"
+
+    # Send message to career specialist
+    url = f"{ROCKET_CHAT_URL}/api/v1/chat.postMessage"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Token": ROCKET_AUTH_TOKEN,
+        "X-User-Id": ROCKET_USER_ID
+    }
+    payload = {
+        "channel": CAREER_SPECIALIST,
+        "text": message_text,
+        "attachments": [
+            {
+                "title": "Approve or request changes:",
+                "actions": [
+                    {
+                        "type": "button",
+                        "text": "✅ Approve",
+                        "msg": f"approve_{sid}",
+                        "msg_in_chat_window": True,
+                        "msg_processing_type": "sendMessage"
+                    },
+                    {
+                        "type": "button",
+                        "text": "❌ Request Changes",
+                        "msg": f"deny_{sid}",
+                        "msg_in_chat_window": True,
+                        "msg_processing_type": "sendMessage"
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
     
