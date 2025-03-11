@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
 from utils import extract, scrape, send_files, send_resume_for_review
-from chat import welcome, response
+from chat import welcome, respond
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -98,7 +98,7 @@ def main():
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
         _LOGGER.info(f"URL Extraction info:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
         
-        return response(msg, sid, has_urls, urls_failed)
+        return respond(msg, sid, has_urls, urls_failed)
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
