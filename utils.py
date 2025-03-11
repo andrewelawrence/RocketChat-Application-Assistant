@@ -359,10 +359,12 @@ def send_message_with_file(room_id, message, file_path):
 def send_files(data, sid):
     user = data.get("user_name", "Unknown")
     room_id = data.get("channel_id", "")
-    # A file is sent by the user
-    if ("message" in data) and ('file' in data['message']):
+    
+    # Check if files exist in the message
+    if "message" in data and "files" in data["message"]:
         _LOGGER.info(f"INFO - detected file by {user}.")
         saved_files = []
+        attachments = []
 
         for file_info in data["message"]["files"]:
             file_id = file_info["_id"]
@@ -374,29 +376,38 @@ def send_files(data, sid):
 
             if file_path:
                 saved_files.append(file_path)
-                # upload it to RAG so that session has the file
+
+                # Upload it to RAG
                 _LOGGER.info(f"Uploading file {file_path} to RAG...")
-                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
+                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = 'smart'")
+                
                 response = pdf_upload(
-                    path = file_path,
-                    session_id = sid,
-                    strategy = 'smart')
+                    path=file_path,
+                    session_id=sid,
+                    strategy='smart'
+                )
                 _LOGGER.info(f"Resp from RAG upload: {response}\n")
-                sleep(10) # so that documents are uploaded to RAG session
+                
+                sleep(10)  # Allow time for processing
 
+                # Prepare attachment for Rocket.Chat message
+                attachments.append({
+                    "title": filename,
+                    "title_link": f"{ROCKET_CHAT_URL}/file-upload/{file_id}/{filename}",
+                    "text": f"📄 {filename}"
+                })
             else:
-                _LOGGER.info(f"Failed to download file")
+                _LOGGER.error(f"Failed to download {filename}")
                 return jsonify({"error": "Failed to download file"}), 500
-            
         
-        # Send message with the downloaded file
-        message_text = f"File(s) uploaded by {user}"
-        for saved_file in saved_files:
-            send_message_with_file(room_id, message_text, saved_file)
-            _LOGGER.info(f"Sending message with {saved_file}\n")
+        # Send a **single clean message** with uploaded file
+        response_message = {
+            "text": "✅ File successfully uploaded!",
+            "attachments": attachments
+        }
 
-        _LOGGER.info(f"Files processed and re-sent successfully!")
-        return jsonify({"text": "Files processed and re-sent successfully!"})
+        _LOGGER.info(f"Files processed successfully: {saved_files}")
+        return jsonify(response_message)
 
 
 # Rocket Chat Message Sending
