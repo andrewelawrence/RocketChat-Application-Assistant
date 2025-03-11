@@ -109,70 +109,57 @@ def query(msg: str, sid: str,
 
     _LOGGER.info(f"RESP: {response}")
 
-    resp_text = response['response'] + "\n\n[DEV] Rag Context:\n" + response['rag_context']
-    _LOGGER.info(f"Final response for session {sid}: {resp_text}")
+    # Extract sources and determine if expert review is needed
+    sources = response.get("sources", [])
+    major_edit_required = "significant rewording" in response["response"].lower() or response.get("low_confidence", False)
 
-    response = {
-        "text": resp_text,
-        "attachments": [
-            {
-                "title": "Start building your resume",
-                "actions": [
-                    {
-                        "type": "button",
-                        "text": "📑 Existing resume",
-                        "msg": "resume_edit",
-                        "msg_in_chat_window": True,
-                        "msg_processing_type": "sendMessage"
-                    },
-                    {
-                        "type": "button",
-                        "text": "🆕 New resume",
-                        "msg": "resume_create",
-                        "msg_in_chat_window": True,
-                        "msg_processing_type": "sendMessage"
-                    }
-                ]
-            }
-        ]
-    }
+    # Add expert review button if necessary
+    buttons = []
+    if major_edit_required:
+        _LOGGER.info(f"Suggesting expert review for session {sid}.")
+        buttons.append({
+            "type": "button",
+            "text": "📨 Consult a Resume Expert",
+            "msg": "send_to_specialist",
+            "msg_in_chat_window": True,
+            "msg_processing_type": "sendMessage"
+        })
 
+    # Format response with RAG context if available
+    context_summary = f"🔎 **Relevant Context Used:**\n{'\n'.join([f'- {s}' for s in sources])}" if sources else ""
+    final_response = f"{response['response']}\n\n{context_summary}" if context_summary else response['response']
 
-    return jsonify(response)
+    _LOGGER.info(f"Final response for session {sid}: {final_response}")
+
+    return jsonify({
+        "text": final_response,
+        "attachments": [{"title": "Next Steps", "actions": buttons}] if buttons else []
+    })
 
 
 def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
 
-    # Check if the user is working on a resume section
+    # Handling resume section updates
     if msg.lower().startswith("create_") or msg.lower().startswith("edit_"):
-        section = msg.split("_")[1]  # Extracts "experience", "education", etc.
-    
-        # Get the actual user message from Rocket.Chat
-        user_input = msg[len(f"{section}_"):]  # Remove "create_" or "edit_" prefix
+        section = msg.split("_")[1]  
+        user_input = msg[len(f"{section}_"):]  
 
         if not user_input.strip():
             return jsonify({"text": "❌ Please provide details for your resume section."})
 
-        # Update the resume summary
+        # Update resume summary
         formatted_summary = update_resume_summary(sid, section, user_input)
 
         return jsonify({
-            "text": "Got it! Your resume has been updated.\n\nWould you like to send this for review?",
+            "text": "Got it! Your resume has been updated.\n\nWould you like to send this for expert review?",
             "attachments": [
                 {
                     "title": "Review Options",
                     "actions": [
                         {
                             "type": "button",
-                            "text": "✅ Yes, send to career specialist",
+                            "text": "📨 Consult a Resume Expert",
                             "msg": "send_to_specialist",
-                            "msg_in_chat_window": True,
-                            "msg_processing_type": "sendMessage"
-                        },
-                        {
-                            "type": "button",
-                            "text": "❌ No, continue editing",
-                            "msg": "continue_editing",
                             "msg_in_chat_window": True,
                             "msg_processing_type": "sendMessage"
                         }
@@ -181,12 +168,25 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
             ]
         })
 
-    # If the user wants to send to a career specialist
+    # **User Requests Expert Review**
     elif msg == "send_to_specialist":
-        send_resume_for_review(sid)  # ✅ Call the function here
+        send_resume_for_review(sid)
         return jsonify({
-            "text": "📨 Your resume has been sent to the career specialist for review!"
+            "text": "📨 Your resume has been sent to a career specialist for review!"
+        })
+    
+    # **Expert Approves Resume**
+    elif msg.startswith("approve_"):
+        return jsonify({
+        "text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"
+        })
+    
+    # **Expert Denies Resume**
+    elif msg.startswith("deny_"):
+        return jsonify({
+            "text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"
         })
     
     else:
         return query(msg, sid, has_urls, urls_failed)
+
