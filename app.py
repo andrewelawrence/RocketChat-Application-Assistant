@@ -5,8 +5,8 @@ import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
-from utils import extract, scrape, send_files
-from chat import welcome, query
+from utils import extract, scrape, send_files, send_resume_for_review
+from chat import welcome, response
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -43,43 +43,62 @@ def main():
     _LOGGER.info(f"HTTP POST Data: {data}")
     
     # Extract relevant information + collect & store user data
-    # TODO: extract any files
     user, uid, new, sid, msg = extract(data)
 
     # Ignore bot messages
     if data.get("bot") or not msg:
+        _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
-        
-    # Handle message
-    if new:
-        return welcome(uid, user)
-    elif "message" in data and "files" in data["message"]:
-        _LOGGER.info(f"🚀 Detected file upload from {user}")
     
-        # Call the function to handle file uploads
-        # Also adds them to the RAG session
+
+    # Handle welcome message for new users
+    if new:
         file_success = send_files(data, sid)
-        
+
+        return welcome(uid, user)
+    
+    # Handle file uploads
+    elif "message" in data and "files" in data["message"]:
+        _LOGGER.info(f"Detected file upload from {user}. Files: {data["message"]["files"]}")
+        file_success = send_files(data, sid)
 
         if file_success:
-            return jsonify({"text": "✅ File received and stored successfully!"})
+            return jsonify({"text": "✅ File successfully uploaded!"})
         else:
-            return jsonify({"text": "⚠️ I encountered an issue saving the file. Please try again."})
-    elif msg == "resume_create":
+            return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
+    
+
+    # Toggles between the conversation style: i.e. is the user creating a new 
+    # resume or editing an existing one
+    resume_editing = False # False = creating a new one, True = editing a prev one.
+
+    # Handle resume creation and editing commands
+    if msg == "resume_create":
         return jsonify({"text": "[DEV] You're now creating a new resume"})
+    
     elif msg == "resume_edit":
-        return jsonify({"text": "[DEV] You're now editing an existing resume"})
+        resume_editing = True
+        return jsonify({"text": "📤 Send me your existing resume to get started!"})
+    
+    # Handle request to send resume for review
+    elif msg == "send_to_specialist":
+        send_resume_for_review(sid)
+        return jsonify({"text": "Your resume has been sent to the career specialist for review!"})
+
+    # Handle career specialist's response (approve or deny)
+    elif msg.startswith("approve_"):
+        return jsonify({"text": "🎉 Your resume has been approved by the career specialist! You’re all set!"})
+    
+    elif msg.startswith("deny_"):
+        return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
+
+    # Default query handling if none of the above matched
     else:
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
         _LOGGER.info(f"URL Extraction info:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
         
-        # TODO: If files were attached, load them into the session
-        # reminder, session_id = sid
-
-        # TODO: see chat.py query function
-        return query(msg, sid, 
-                     has_urls, urls_failed)
+        return response(msg, sid, has_urls, urls_failed)
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
