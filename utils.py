@@ -1,4 +1,5 @@
 # utils.py
+# TODO: see upload() & extract()
 
 import os, re, time, hashlib, boto3, requests
 from config import get_logger
@@ -25,20 +26,6 @@ _TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 
 # restrict valid uids
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
-
-# File Uploading and Accessing through RocketChat
-ROCKET_CHAT_URL = os.environ.get("rocketUrl")
-ROCKET_USER_ID = os.environ.get("rocketUid")
-ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
-
-# File temporary section
-UPLOAD_FOLDER = os.getcwd() + "/tmp"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'txt', 'pdf'}
-
-# Human in the loop
-CAREER_SPECIALIST = "@michael.brady631208"  
 
 def _gen_sid() -> str:
     """Generate a hashed SID from the epoch time (or any other scheme)."""
@@ -311,6 +298,19 @@ def extract(data) -> tuple:
 
     return (user, uid, new, sid, msg)
 
+
+
+# File Uploading and Accessing through RocketChat
+ROCKET_CHAT_URL = os.environ.get("rocketUrl")
+ROCKET_USER_ID = os.environ.get("rocketUid")
+ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
+
+# File temporary section
+UPLOAD_FOLDER = os.getcwd() + "/tmp"
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -333,11 +333,8 @@ def download_file(file_id, filename):
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
             return local_path
-    else:
-        _LOGGER.info(f"User submitted an invalid file format.")
-        return None
-        
-    _LOGGER.info(f"Some issue with {filename} with {response.status_code} code")
+    
+    print(f"INFO - some issue with {filename} with {response.status_code} code")
     return None
 
 def send_message_with_file(room_id, message, file_path):
@@ -362,12 +359,10 @@ def send_message_with_file(room_id, message, file_path):
 def send_files(data, sid):
     user = data.get("user_name", "Unknown")
     room_id = data.get("channel_id", "")
-    
-    # Check if files exist in the message
-    if "message" in data and "files" in data["message"]:
+    # A file is sent by the user
+    if ("message" in data) and ('file' in data['message']):
         _LOGGER.info(f"INFO - detected file by {user}.")
         saved_files = []
-        attachments = []
 
         for file_info in data["message"]["files"]:
             file_id = file_info["_id"]
@@ -379,39 +374,29 @@ def send_files(data, sid):
 
             if file_path:
                 saved_files.append(file_path)
-
-                # Upload it to RAG
+                # upload it to RAG so that session has the file
                 _LOGGER.info(f"Uploading file {file_path} to RAG...")
-                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = 'smart'")
-                
+                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
                 response = pdf_upload(
-                    path=file_path,
-                    session_id=sid,
-                    strategy='smart'
-                )
+                    path = file_path,
+                    session_id = sid,
+                    strategy = 'smart')
                 _LOGGER.info(f"Resp from RAG upload: {response}\n")
-                
-                sleep(10)  # Allow time for processing
+                sleep(10) # so that documents are uploaded to RAG session
 
-                # Prepare attachment for Rocket.Chat message
-                attachments.append({
-                    "title": filename,
-                    "title_link": f"{ROCKET_CHAT_URL}/file-upload/{file_id}/{filename}",
-                    "text": f"📄 {filename}"
-                })
             else:
-                _LOGGER.error(f"Failed to download {filename}")
+                _LOGGER.info(f"Failed to download file")
                 return jsonify({"error": "Failed to download file"}), 500
+            
         
-        # Send a **single clean message** with uploaded file
-        response_message = {
-            "text": "✅ File successfully uploaded!",
-            "attachments": attachments
-        }
+        # Send message with the downloaded file
+        message_text = f"File(s) uploaded by {user}"
+        for saved_file in saved_files:
+            send_message_with_file(room_id, message_text, saved_file)
+            _LOGGER.info(f"Sending message with {saved_file}\n")
 
-        _LOGGER.info(f"Files processed successfully: {saved_files}")
-        return jsonify(response_message)
-
+        _LOGGER.info(f"Files processed and re-sent successfully!")
+        return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
 # Rocket Chat Message Sending
@@ -434,6 +419,8 @@ def update_resume_summary(sid, section, content):
 
     return formatted_summary
 
+CAREER_SPECIALIST = "@michael.brady631208"  
+
 def send_resume_for_review(sid):
     """
     Sends the formatted resume summary to a career specialist.
@@ -448,9 +435,12 @@ def send_resume_for_review(sid):
         [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
     )
 
-    message_text = f"🔎 **Resume Review Request** 🔎\n\nHere’s what we’ve covered so far:\n\n{formatted_summary}"
+    message_text = (
+    f"🔎 **Resume Review Request** 🔎\n\n"
+    f"Here’s the updated section for review:\n\n"
+    f"{formatted_summary}"
+    )
     _LOGGER.info(f"Sending resume review request to specialist. Session: {sid}")
-
 
     # Send message to career specialist
     url = f"{ROCKET_CHAT_URL}/api/v1/chat.postMessage"
@@ -489,4 +479,3 @@ def send_resume_for_review(sid):
     _LOGGER.info(f"Rocket.Chat response for sending resume: {response.json()}")
 
     return response.json()
-    
