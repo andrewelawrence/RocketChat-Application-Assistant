@@ -306,7 +306,7 @@ ROCKET_USER_ID = os.environ.get("rocketUid")
 ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
 
 # File temporary section
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = os.cwd() + "/tmp"
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -361,7 +361,7 @@ def send_files(data, sid):
     room_id = data.get("channel_id", "")
     # A file is sent by the user
     if ("message" in data) and ('file' in data['message']):
-        _LOGGER.info(f"INFO - detected file")
+        _LOGGER.info(f"INFO - detected file by {user}.")
         saved_files = []
 
         for file_info in data["message"]["files"]:
@@ -369,6 +369,7 @@ def send_files(data, sid):
             filename = file_info["name"]
 
             # Download file
+            _LOGGER.info(f"Downloading file {filename} from Rocket.Chat.")
             file_path = download_file(file_id, filename)
 
             if file_path:
@@ -427,6 +428,7 @@ def send_resume_for_review(sid):
     summary = session.get(sid, {}).get("resume_summary", {})
 
     if not summary:
+        _LOGGER.warning(f"No resume summary found for session {sid}.")
         return {"error": "No resume summary found!"}
 
     formatted_summary = "\n".join(
@@ -434,6 +436,8 @@ def send_resume_for_review(sid):
     )
 
     message_text = f"🔎 **Resume Review Request** 🔎\n\nHere’s what we’ve covered so far:\n\n{formatted_summary}"
+    _LOGGER.info(f"Sending resume review request to specialist. Session: {sid}")
+
 
     # Send message to career specialist
     url = f"{ROCKET_CHAT_URL}/api/v1/chat.postMessage"
@@ -469,5 +473,7 @@ def send_resume_for_review(sid):
     }
 
     response = requests.post(url, json=payload, headers=headers)
+    _LOGGER.info(f"Rocket.Chat response for sending resume: {response.json()}")
+
     return response.json()
     
