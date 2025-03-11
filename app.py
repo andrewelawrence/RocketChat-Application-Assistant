@@ -33,6 +33,7 @@ if _ENV == "dev":
 # Main app route; querying the chatbot and sending responses back.
 @app.route('/query', methods=['POST'])
 def main(): 
+    _LOGGER.info(f"===== NEW INTERACTION {"=" * 45}")
     # Enforce only JSON requests
     if not request.is_json:
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
