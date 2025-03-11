@@ -57,7 +57,9 @@ def main():
         _LOGGER.info(f"🚀 Detected file upload from {user}")
     
         # Call the function to handle file uploads
-        file_success = send_files(data)
+        # Also adds them to the RAG session
+        file_success = send_files(data, sid)
+        
 
         if file_success:
             return jsonify({"text": "✅ File received and stored successfully!"})

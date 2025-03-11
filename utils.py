@@ -8,6 +8,7 @@ from flask import jsonify
 from urlextract import URLExtract
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
+from time import sleep
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -374,7 +375,7 @@ def send_message_with_file(room_id, message, file_path):
         return {"error": "Invalid JSON response from Rocket.Chat API", "raw_response": response.text}
     
 
-def send_files(data):
+def send_files(data, sid):
     user = data.get("user_name", "Unknown")
     room_id = data.get("channel_id", "")
     # A file is sent by the user
@@ -391,6 +392,14 @@ def send_files(data):
 
             if file_path:
                 saved_files.append(file_path)
+                # upload it to RAG so that session has the file
+                response = pdf_upload(
+                    path = file_path,
+                    session_id = sid,
+                    strategy = 'smart')
+                print(response)
+                sleep(10) # so that documents are uploaded to RAG session
+
             else:
                 _LOGGER.info(f"Failed to download file")
                 return jsonify({"error": "Failed to download file"}), 500
