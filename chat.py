@@ -5,7 +5,7 @@ import os
 from flask import jsonify
 from config import get_logger
 from llmproxy import generate
-from utils import safe_load_text
+from utils import safe_load_text, update_resume_summary, send_resume_for_review 
 
 # filespaths, logging, etc.
 _LOGGER = get_logger(__name__)
@@ -134,4 +134,56 @@ def query(msg: str, sid: str,
         ]
     }
 
+
     return jsonify(response)
+
+
+def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
+
+    # Check if the user is working on a resume section
+    if msg.lower().startswith("create_") or msg.lower().startswith("edit_"):
+        section = msg.split("_")[1]  # Extracts "experience", "education", etc.
+    
+        # Get the actual user message from Rocket.Chat
+        user_input = msg[len(f"{section}_"):]  # Remove "create_" or "edit_" prefix
+
+        if not user_input.strip():
+            return jsonify({"text": "❌ Please provide details for your resume section."})
+
+        # Update the resume summary
+        formatted_summary = update_resume_summary(sid, section, user_input)
+
+        return jsonify({
+            "text": "Got it! Your resume has been updated.\n\nWould you like to send this for review?",
+            "attachments": [
+                {
+                    "title": "Review Options",
+                    "actions": [
+                        {
+                            "type": "button",
+                            "text": "✅ Yes, send to career specialist",
+                            "msg": "send_to_specialist",
+                            "msg_in_chat_window": True,
+                            "msg_processing_type": "sendMessage"
+                        },
+                        {
+                            "type": "button",
+                            "text": "❌ No, continue editing",
+                            "msg": "continue_editing",
+                            "msg_in_chat_window": True,
+                            "msg_processing_type": "sendMessage"
+                        }
+                    ]
+                }
+            ]
+        })
+
+    # If the user wants to send to a career specialist
+    elif msg == "send_to_specialist":
+        send_resume_for_review(sid)  # ✅ Call the function here
+        return jsonify({
+            "text": "📨 Your resume has been sent to the career specialist for review!"
+        })
+    
+    else:
+        return query(msg, sid, has_urls, urls_failed)
