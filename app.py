@@ -67,7 +67,6 @@ def main():
         else:
             return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
     
-
     # Toggles between the conversation style: i.e. is the user creating a new 
     # resume or editing an existing one
     resume_editing = False # False = creating a new one, True = editing a prev one.

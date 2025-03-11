@@ -255,10 +255,7 @@ def scrape(sid: str, msg: str) -> tuple:
         
         for url in urls:
             page = _robust_scrape(url)
-            
-            # TODO: delete for prod - too much data logged
-            _LOGGER.info(f"Page content: {page}")
-            
+                        
             if page == None: # ie. web-scraping failed
                 failed = True
                 failed_urls.append("url")
@@ -270,23 +267,6 @@ def scrape(sid: str, msg: str) -> tuple:
     except Exception as e:
         _LOGGER
         return (True, True, "An unknown error occurred when accessing sites; try uploading site content as a PDF.")
-
-def upload(sid : str) -> tuple:
-    """
-    Upload any file type to chatbot session using llmproxy upload function.
-    
-    This enables excellent flexability but we must transform the attached file
-    to a multi-part form which will require a little research.
-    
-    Returns true if upload was successful,
-    
-    # TODO: update params, actually impl. function
-    """
-    
-    failed = False
-    failed_uploads = list()
-    
-    return (failed, failed_uploads) 
 
 def extract(data) -> tuple:
     """
@@ -348,6 +328,7 @@ def download_file(file_id, filename):
         response = requests.get(file_url, headers=headers, stream=True)
         if response.status_code == 200:
             local_path = os.path.join(UPLOAD_FOLDER, filename)
+            _LOGGER.info(f"Local filepath: {local_path}")
             with open(local_path, "wb") as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
@@ -393,11 +374,13 @@ def send_files(data, sid):
             if file_path:
                 saved_files.append(file_path)
                 # upload it to RAG so that session has the file
+                _LOGGER.info(f"Uploading file {file_path} to RAG...")
+                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
                 response = pdf_upload(
                     path = file_path,
                     session_id = sid,
                     strategy = 'smart')
-                print(response)
+                _LOGGER.info(f"Resp from RAG upload: {response}\n")
                 sleep(10) # so that documents are uploaded to RAG session
 
             else:
@@ -406,7 +389,7 @@ def send_files(data, sid):
             
         
         # Send message with the downloaded file
-        message_text = f"File uploaded by {user}"
+        message_text = f"File(s) uploaded by {user}"
         for saved_file in saved_files:
             send_message_with_file(room_id, message_text, saved_file)
             _LOGGER.info(f"Sending message with {saved_file}\n")
@@ -415,7 +398,7 @@ def send_files(data, sid):
         return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
-    # Rocket Chat Message Sending
+# Rocket Chat Message Sending
 
 def update_resume_summary(sid, section, content):
     """
@@ -435,7 +418,7 @@ def update_resume_summary(sid, section, content):
 
     return formatted_summary
 
-CAREER_SPECIALIST = "@michael.brady631208"  # Change this to the real username
+CAREER_SPECIALIST = "@michael.brady631208"  
 
 def send_resume_for_review(sid):
     """
