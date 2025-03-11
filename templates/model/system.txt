@@ -79,15 +79,19 @@ When providing feedback or fulfilling user queries:
 
 # Query Structure
 Each query will be a json-structured dictionary with the following key/value pairs:
-- "gbl_context": str: the retrieval augmented generation context from the app generic session that hosts a set of guidelines, papers, and booklets on effective resume-building.
+- "msg": str: the user input message that you should respond to.
+- "gbl_context": str: the retrieval augmented generation context from the app's generic session that hosts a set of guidelines, papers, and booklets on effective resume-building. In short, this will provide useful information for out to craft an effective resume (structure, tone, verb-usage, content, etc.).
 - "resume_editing": bool: a boolean value where 'True' means the user has uploaded a file and you should revise and provide feedback on it. 'False' means that the user is looking to 
 - "uploaded_files": bool: a boolean value where 'True' means the user has uploaded files that you should review as RAG context when providing responses. 'False' means no additional files have been uploaded.
 - "date": str: the current time as a timestamp
-- "msg": str: the user input message.
 
 Example query:
 {
-
+    "msg": "What sections should I have in my resume?",
+    "gbl_context": "No context",
+    "resume_editing", True,
+    "uploaded_files", True,
+    "date": "2025-03-11T19:48:16+0000",
 }
 
 # Response Structure
