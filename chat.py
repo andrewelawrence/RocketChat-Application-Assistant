@@ -56,6 +56,8 @@ def welcome(uid: str, user: str):
 # main query function
 def query(msg: str, sid: str, 
           has_urls: bool, urls_failed: list):
+    _LOGGER.info(f"Processing query for session {sid} - Message: {msg}")
+
     """
     TODO: flesh out what we want for capabilities
     file uploading handled, providing sources, linking to career center, etc.
@@ -108,6 +110,7 @@ def query(msg: str, sid: str,
     _LOGGER.info(f"RESP: {response}")
 
     resp_text = response['response'] + "\n\n[DEV] Rag Context:\n" + response['rag_context']
+    _LOGGER.info(f"Final response for session {sid}: {resp_text}")
 
     response = {
         "text": resp_text,
