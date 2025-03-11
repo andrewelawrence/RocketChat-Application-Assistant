@@ -1,5 +1,4 @@
 # utils.py
-# TODO: see upload() & extract()
 
 import os, re, time, hashlib, boto3, requests
 from config import get_logger
@@ -26,6 +25,20 @@ _TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 
 # restrict valid uids
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
+
+# File Uploading and Accessing through RocketChat
+ROCKET_CHAT_URL = os.environ.get("rocketUrl")
+ROCKET_USER_ID = os.environ.get("rocketUid")
+ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
+
+# File temporary section
+UPLOAD_FOLDER = os.getcwd() + "/tmp"
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'txt', 'pdf'}
+
+# Human in the loop
+CAREER_SPECIALIST = "@michael.brady631208"  
 
 def _gen_sid() -> str:
     """Generate a hashed SID from the epoch time (or any other scheme)."""
@@ -298,19 +311,6 @@ def extract(data) -> tuple:
 
     return (user, uid, new, sid, msg)
 
-
-
-# File Uploading and Accessing through RocketChat
-ROCKET_CHAT_URL = os.environ.get("rocketUrl")
-ROCKET_USER_ID = os.environ.get("rocketUid")
-ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
-
-# File temporary section
-UPLOAD_FOLDER = os.getcwd() + "/tmp"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
-
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -333,8 +333,11 @@ def download_file(file_id, filename):
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
             return local_path
-    
-    print(f"INFO - some issue with {filename} with {response.status_code} code")
+    else:
+        _LOGGER.info(f"User submitted an invalid file format.")
+        return None
+        
+    _LOGGER.info(f"Some issue with {filename} with {response.status_code} code")
     return None
 
 def send_message_with_file(room_id, message, file_path):
@@ -430,8 +433,6 @@ def update_resume_summary(sid, section, content):
     )
 
     return formatted_summary
-
-CAREER_SPECIALIST = "@michael.brady631208"  
 
 def send_resume_for_review(sid):
     """
