@@ -306,7 +306,7 @@ ROCKET_USER_ID = os.environ.get("rocketUid")
 ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
 
 # File temporary section
-UPLOAD_FOLDER = os.cwd() + "/tmp"
+UPLOAD_FOLDER = os.getcwd() + "/tmp"
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
