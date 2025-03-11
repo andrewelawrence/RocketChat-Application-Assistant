@@ -46,7 +46,7 @@ def main():
     user, uid, new, sid, msg = extract(data)
 
     # Ignore bot messages
-    if data.get("bot") or not msg:
+    if bool(data.get("bot")) == True:
         _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
     
