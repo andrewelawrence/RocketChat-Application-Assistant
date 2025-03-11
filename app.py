@@ -54,14 +54,13 @@ def main():
 
     # Handle welcome message for new users
     if new:
+        _LOGGER.info(f"New user detected: {user}. Processing welcome & file upload.")
         file_success = send_files(data, sid)
-        _LOGGER.info(f"New user detected: {user}. Sending welcome message.")
-
         return welcome(uid, user)
     
     # Handle file uploads
     elif "message" in data and "files" in data["message"]:
-        _LOGGER.info(f"Detected file upload from {user}. Files: {data["message"]["files"]}")
+        _LOGGER.info(f"Detected file upload from {user}. Files: {data['message']['files']}")
         file_success = send_files(data, sid)
         _LOGGER.info(f"File upload status: {file_success}")
         if file_success:
@@ -81,21 +80,6 @@ def main():
         resume_editing = True
         return jsonify({"text": "📤 Send me your existing resume to get started!"})
     
-    # Handle request to send resume for review
-    elif msg == "send_to_specialist":
-        _LOGGER.info(f"User {user} requested to send resume to specialist.")
-        send_resume_for_review(sid)
-        return jsonify({"text": "Your resume has been sent to the career specialist for review!"})
-
-    # Handle career specialist's response (approve or deny)
-    elif msg.startswith("approve_"):
-        _LOGGER.info(f"Resume approved by specialist for session {sid}.")
-        return jsonify({"text": "🎉 Your resume has been approved by the career specialist! You’re all set!"})
-    
-    elif msg.startswith("deny_"):
-        _LOGGER.info(f"Resume denied by specialist for session {sid}. Asking user to refine.")
-        return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
-
     # Default query handling if none of the above matched
     else:
         _LOGGER.info(f"Processing user query: {msg}")
