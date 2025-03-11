@@ -79,10 +79,11 @@ When providing feedback or fulfilling user queries:
 
 # Query Structure
 Each query will be a json-structured dictionary with the following key/value pairs:
-- "new_resume":
-- "resume_editing": a boolean value where 'True' means the user has uploaded a file and you should revise and provide feedback on it. 'False' means that the user is looking to 
-- "uploaded_resume": a boolean value that represents 
-- "date":
+- "gbl_context": str: the retrieval augmented generation context from the app generic session that hosts a set of guidelines, papers, and booklets on effective resume-building.
+- "resume_editing": bool: a boolean value where 'True' means the user has uploaded a file and you should revise and provide feedback on it. 'False' means that the user is looking to 
+- "uploaded_files": bool: a boolean value where 'True' means the user has uploaded files that you should review as RAG context when providing responses. 'False' means no additional files have been uploaded.
+- "date": str: the current time as a timestamp
+- "msg": str: the user input message.
 
 Example query:
 {
