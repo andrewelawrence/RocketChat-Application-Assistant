@@ -10,7 +10,6 @@ from chat import welcome, respond
 
 # setup logging
 _LOGGER = get_logger(__name__)
-_LOGGER.info("Application starting...")
 
 # Creates a Flask app instance so Flask can locate resources. 
 app = Flask(__name__)
@@ -23,7 +22,6 @@ try:
     _DEV_PAGE = os.environ.get("flaskPage")
     _DEV_ADDR = "http://" + _DEV_HOST + ":" + _DEV_PORT + "/query"
 except:
-    _LOGGER.info("DEV environment not found...setting to PROD environment.")
     _ENV = ""
 
 # Only use CORS if in dev state
@@ -45,6 +43,8 @@ def main():
     
     # Extract relevant information + collect & store user data
     user, uid, new, sid, msg = extract(data)
+    _LOGGER.info(f"Extracted user data - User: {user}, UID: {uid}, Session ID: {sid}, New User: {new}, Message: {msg}")
+
 
     # Ignore bot messages
     if bool(data.get("bot")) == True:
@@ -55,6 +55,7 @@ def main():
     # Handle welcome message for new users
     if new:
         file_success = send_files(data, sid)
+        _LOGGER.info(f"New user detected: {user}. Sending welcome message.")
 
         return welcome(uid, user)
     
@@ -62,7 +63,7 @@ def main():
     elif "message" in data and "files" in data["message"]:
         _LOGGER.info(f"Detected file upload from {user}. Files: {data["message"]["files"]}")
         file_success = send_files(data, sid)
-
+        _LOGGER.info(f"File upload status: {file_success}")
         if file_success:
             return jsonify({"text": "✅ File successfully uploaded!"})
         else:
@@ -82,18 +83,22 @@ def main():
     
     # Handle request to send resume for review
     elif msg == "send_to_specialist":
+        _LOGGER.info(f"User {user} requested to send resume to specialist.")
         send_resume_for_review(sid)
         return jsonify({"text": "Your resume has been sent to the career specialist for review!"})
 
     # Handle career specialist's response (approve or deny)
     elif msg.startswith("approve_"):
+        _LOGGER.info(f"Resume approved by specialist for session {sid}.")
         return jsonify({"text": "🎉 Your resume has been approved by the career specialist! You’re all set!"})
     
     elif msg.startswith("deny_"):
+        _LOGGER.info(f"Resume denied by specialist for session {sid}. Asking user to refine.")
         return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
 
     # Default query handling if none of the above matched
     else:
+        _LOGGER.info(f"Processing user query: {msg}")
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
         _LOGGER.info(f"URL Extraction info:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
