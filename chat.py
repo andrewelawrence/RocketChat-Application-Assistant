@@ -57,7 +57,7 @@ def welcome(uid: str, user: str):
 # main query function
 def query(msg: str, sid: str, 
           has_urls: bool, urls_failed: list,
-          resume_editing: bool, gbl_context: str):
+          rsme: bool, gbl_context: str):
     _LOGGER.info(f"Processing query for session {sid} - Message: {msg}")
 
     """
@@ -97,14 +97,16 @@ def query(msg: str, sid: str,
     query = {
         "msg": msg,
         "gbl_context": gbl_context,
-        "resume_editing": resume_editing,
+        "resume_editing": rsme,
         "date": datetime.now(timezone.utc).isoformat(),
         }
+    query = json.dumps(query, indent=4)
+    _LOGGER.info(f"User query: {query}")
     
     response = generate(
         model=_MODEL,
         system=system,
-        query=json.dumps(query, indent=4),
+        query=query,
         temperature=_TEMP,
         lastk=_LAST_K,
         rag_usage=_RAG,
@@ -114,13 +116,28 @@ def query(msg: str, sid: str,
     )
 
     _LOGGER.info(f"RESP: {response}")
+    
+    resp = json.loads(response)
 
    # Check if human intervention is needed
-    human_in_the_loop = response.get("human_in_the_loop", False)
+    human_in_the_loop = resp.get("human_in_the_loop", False)
     _LOGGER.info(f"Human escalation needed: {human_in_the_loop}")
 
   # Prepare buttons for user action
-    buttons = []
+    buttons = [{
+        "type": "button",
+        "text": "📑 Existing resume",
+        "msg": "resume_edit",
+        "msg_in_chat_window": True,
+        "msg_processing_type": "sendMessage"
+    },
+    {
+        "type": "button",
+        "text": "🆕 New resume",
+        "msg": "resume_create",
+        "msg_in_chat_window": True,
+        "msg_processing_type": "sendMessage"
+    }]
 
     if human_in_the_loop:
         _LOGGER.info(f"Suggesting human review for session {sid}.")
@@ -145,7 +162,7 @@ def query(msg: str, sid: str,
 
 
 def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
-            resume_editing: bool, gbl_context: str):
+            rsme: bool, gbl_context: str):
 
     # Handling resume section updates
     if msg.lower().startswith(("create_", "edit_")):
@@ -186,4 +203,4 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
         })
 
     else:
-        return query(msg, sid, has_urls, urls_failed, resume_editing, gbl_context)
+        return query(msg, sid, has_urls, urls_failed, rsme, gbl_context)
