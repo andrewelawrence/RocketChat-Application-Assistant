@@ -273,7 +273,45 @@ def upload(data, sid):
 
  #   return formatted_summary
 
+def test_send_resume_for_review(sid):
+    """
+    Sends a simple test message to Rocket.Chat to verify the integration.
+    """
+    
+    # Fetch Rocket.Chat credentials
+    rocket_url = os.getenv("rocketUrl")
+    rocket_user_id = os.getenv("rocketUid")
+    rocket_token = os.getenv("rocketToken")
 
+    if not rocket_url or not rocket_user_id or not rocket_token:
+        print("🚨 Rocket.Chat credentials are missing!")
+        return {"error": "Rocket.Chat credentials not found."}
+
+    # Rocket.Chat API setup
+    url = f"{rocket_url}/api/v1/chat.postMessage"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Token": rocket_token,
+        "X-User-Id": rocket_user_id
+    }
+    payload = {
+        "channel": "@michael.brady631208",  # Ensure this matches your Rocket.Chat username
+        "text": "🚀 Test message: This is a simple message to verify Rocket.Chat integration."
+    }
+
+    print(f"🔍 Sending test message to {url}...")
+    response = requests.post(url, json=payload, headers=headers)
+
+    print(f"📡 Response Code: {response.status_code}")
+
+    try:
+        response_data = response.json()
+        print(f"📩 Rocket.Chat Response: {response_data}")
+    except Exception as e:
+        print(f"⚠️ Failed to parse response from Rocket.Chat: {e}")
+        response_data = {"error": "Invalid response from Rocket.Chat"}
+
+    return response_data
 
 def send_resume_for_review(sid):
     """
