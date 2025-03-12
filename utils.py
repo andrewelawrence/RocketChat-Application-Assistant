@@ -251,27 +251,27 @@ def upload(data, sid):
         return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
-def update_resume_summary(sid, section, content):
-    """
-    Updates the structured resume summary stored in session data.
-    Keeps track of completed resume sections and content.
-    """
+# def update_resume_summary(sid, section, content):
+#    """
+ #   Updates the structured resume summary stored in session data.
+ #   Keeps track of completed resume sections and content.
+#    """
 
-    if sid not in session:
-        session[sid] = {"resume_summary": {}}
+   # if sid not in session:
+    #    session[sid] = {"resume_summary": {}}
 
     # Store the new content for the section
-    session[sid]["resume_summary"][section] = content
+  #  session[sid]["resume_summary"][section] = content
 
     # 🔍 DEBUG: Log the entire resume after updating
-    _LOGGER.debug(f"Updated resume summary for session {sid}: {session[sid]['resume_summary']}")
+  #  _LOGGER.debug(f"Updated resume summary for session {sid}: {session[sid]['resume_summary']}")
 
     # Generate formatted summary
-    formatted_summary = "\n".join(
-        [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
-    )
+  #  formatted_summary = "\n".join(
+  #      [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
+  #  )
 
-    return formatted_summary
+ #   return formatted_summary
 
 
 
@@ -281,23 +281,23 @@ def send_resume_for_review(sid):
     """
 
     # 🔍 DEBUG: Log session data before sending
-    _LOGGER.debug(f"Session data before sending to expert: {session.get(sid, {})}")
+  #  _LOGGER.debug(f"Session data before sending to expert: {session.get(sid, {})}")
 
-    summary = session.get(sid, {}).get("resume_summary", {})
+  #  summary = session.get(sid, {}).get("resume_summary", {})
 
-    if not summary:
+    # if not summary:
         _LOGGER.warning(f"No resume summary found for session {sid}.")
-        return {"error": "No resume summary found!"}
+        # return {"error": "No resume summary found!"}
 
     # 🔥 New Fix: Format the entire resume properly
-    formatted_resume = "\n\n".join(
-        [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
+    # formatted_resume = "\n\n".join(
+       # [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
     )
 
     message_text = (
         f"🔎 **Resume Review Request** 🔎\n\n"
         f"Here’s the full updated resume for review:\n\n"
-        f"{formatted_resume}"
+        # f"{formatted_resume}"
     )
     
     _LOGGER.info(f"Attempting to send full resume review request. Session: {sid}")
