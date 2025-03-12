@@ -27,7 +27,7 @@ def respond(data: dict, user: str, uid: str, new: bool, sid: str, msg: str,
         A Flask JSON response with the appropriate message.
     """
     if new:
-        _LOGGER.info(f"New user detected: {user}. Processing welcome & file upload.")
+        _LOGGER.info(f"New user detected: {user}. Processing welcome.")
         return welcome(uid, user)
     
     if _files_attached(data):
