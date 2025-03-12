@@ -138,15 +138,16 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
     _LOGGER.info(f"Response: {resp}")
 
     try:
-        rag = resp.get(['rag_context'])
-        resp = json.loads(resp.get(['response'])) 
+        rag = resp.get('rag_context')
+        resp = json.loads(resp.get('response', '')) 
             # now resp is exclusively the inner "response"
-        section = resp.get(['section'], "general")
-        sources = resp.get(['sources'], [])
-        incl_human = resp.get(['human_in_the_loop'], False)
-        resp = resp.get(['response'], "Error; notify the team.") 
+        section = resp.get('section', "general")
+        sources = resp.get('sources', [])
+        incl_human = resp.get('human_in_the_loop', False)
+        resp = resp.get('response', "An error occurred; notify the team.") 
             # now response is exclusively the innermost "response" - the real message
-
+        _LOGGER.info(f"Response Parsed: rag: {rag}, resp: {resp}, section: {section}, sources: {sources}, human_in_the_loop: {incl_human}")
+        
         # Prepare buttons for user action
         buttons = [{
             "type": "button",
@@ -183,7 +184,8 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
             "attachments": [{"title": "Next Steps", "actions": buttons}] if buttons else []
             })
     
-    except:
+    except Exception as e:
+        _LOGGER.error(f"An error occurred in the response: {e}")
         return jsonify({"text": "An error occurred in the response. Please try again. If this continues, please notify the team."})
 
 
