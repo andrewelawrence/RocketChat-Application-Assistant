@@ -137,6 +137,8 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
     _LOGGER.info(f"RESP: {response}")
     
     resp = json.loads(response)
+    _LOGGER.info(f"LOADS RESP: {resp}")
+    
     human_in_the_loop = resp.get("human_in_the_loop", False)
     _LOGGER.info(f"Human escalation needed: {human_in_the_loop}")
 
