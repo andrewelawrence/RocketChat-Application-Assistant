@@ -1,5 +1,4 @@
 # app.py
-# TODO: see main()
 
 import os
 from flask import Flask, request, jsonify, render_template
@@ -21,17 +20,19 @@ try:
     _DEV_PORT = os.environ.get("flaskPort")
     _DEV_PAGE = os.environ.get("flaskPage")
     _DEV_ADDR = "http://" + _DEV_HOST + ":" + _DEV_PORT + "/query"
+    
+    # Only use CORS if in dev state
+    if _ENV == "dev":
+        CORS(app)
 except:
     _ENV = ""
-
-# Only use CORS if in dev state
-if _ENV == "dev":
-    CORS(app)
 
 # Main app route; querying the chatbot and sending responses back.
 @app.route('/query', methods=['POST'])
 def main(): 
-    _LOGGER.info(f"===== NEW INTERACTION {"=" * 45}")
+    # Delineate logs
+    _LOGGER.info(f"========== NEW INTERACTION ==========")
+    
     # Enforce only JSON requests
     if not request.is_json:
         _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
@@ -39,19 +40,17 @@ def main():
     
     # Get data and log it
     data = request.get_json() 
-    _LOGGER.info(f"HTTP POST Data: {data}")
+    _LOGGER.info(f"HTTP POST: {data}")
     
     # Extract relevant information + collect & store user data
     user, uid, new, sid, msg = extract(data)
-    _LOGGER.info(f"Extracted user data - User: {user}, UID: {uid}, Session ID: {sid}, New User: {new}, Message: {msg}")
+    _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}")
 
-
-    # Ignore bot messages
+    # Ignore bot messages, goes after extract so that we log bot requests.
     if bool(data.get("bot")) == True:
         _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
     
-
     # Handle welcome message for new users
     if new:
         _LOGGER.info(f"New user detected: {user}. Processing welcome & file upload.")
@@ -70,15 +69,17 @@ def main():
     
     # Toggles between the conversation style: i.e. is the user creating a new 
     # resume or editing an existing one
-    resume_editing = False # False = creating a new one, True = editing a prev one.
+    resume_editing = None # False = creating a new one, True = editing a prev one.
 
     # Handle resume creation and editing commands
     if msg == "resume_create":
-        return jsonify({"text": "[DEV] You're now creating a new resume"})
+        resume_editing = False
+        return jsonify({"text": "You're now creating a new resume"})
+        # TODO: implement it so that that message appears and then the chatbot provides some question to get things started
     
     elif msg == "resume_edit":
         resume_editing = True
-        return jsonify({"text": "📤 Send me your existing resume to get started!"})
+        return jsonify({"text": "Send me your existing resume as a '.pdf' or '.txt' file to get started!"})
     
     # Default query handling if none of the above matched
     else:
@@ -86,6 +87,9 @@ def main():
         # If links are in the msg, load their content into the session
         has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
         _LOGGER.info(f"URL Extraction info:\n{has_urls}\n{url_uploads_failed}\n{urls_failed}")
+        
+        if resume_editing == None:
+            return jsonify({"text": "Please select one of the two options for working on your resume."})
         
         return respond(msg, sid, has_urls, urls_failed)
 
@@ -115,6 +119,7 @@ if __name__ == "__main__":
     # If dev state, run verbosely and host locally
     if _ENV == "dev":
         app.run(debug=True, use_reloader=True, host=_DEV_HOST, port=_DEV_PORT)
+        
     # Else, run normally
     else:
         app.run(debug=True)
