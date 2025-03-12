@@ -122,7 +122,7 @@ def guides(msg: str) -> str:
         return json.dumps(resp)
 
 
-def safe_load_text(filepath : str) -> dict:
+def safe_load_text(filepath : str) -> str:
     """
     Safely read in file contents; return empty string if file not found.
     """
@@ -218,23 +218,25 @@ def upload(data, sid):
             filename = file_info["name"]
 
             # Download file
-            _LOGGER.info(f"Downloading file {filename} from Rocket.Chat.")
+            _LOGGER.info(f"Downloading file <{filename}> from Rocket.Chat.")
             file_path = _download_file(file_id, filename)
 
             if file_path:
                 saved_files.append(file_path)
                 # upload it to RAG so that session has the file
-                _LOGGER.info(f"Uploading file {file_path} to RAG...")
+                _LOGGER.info(f"Uploading file <{file_path}> to RAG.")
                 _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
                 response = pdf_upload(
                     path = file_path,
                     session_id = sid,
-                    strategy = 'smart')
-                _LOGGER.info(f"Response from RAG upload: {response}\n")
+                    description=filename,
+                    strategy = 'smart'
+                    )
+                _LOGGER.info(f"Response from RAG upload: {response}")
                 sleep(10) # so that documents have time to load
 
             else:
-                _LOGGER.info(f"Failed to download file")
+                _LOGGER.info(f"Failed to download file.")
                 return jsonify({"error": "Failed to download file"}), 500
             
         # Commented out for now because of double messages sent - which is 
