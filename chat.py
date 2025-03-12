@@ -12,12 +12,12 @@ _LOGGER = get_logger(__name__)
 
 # Model info
 _WELCOME = os.environ.get("welcomePage")
-_SYSTEM = os.environ.get("systemPrompt")
-_MODEL = os.environ.get("model")
-_TEMP = os.environ.get("temp")
-_LAST_K = os.environ.get("lastK")
-_RAG = os.environ.get("rag")
-_RAG_K = os.environ.get("ragK")
+_SYSTEM  = os.environ.get("systemPrompt")
+_MODEL   = os.environ.get("model")
+_TEMP    = os.environ.get("temp")
+_LAST_K  = os.environ.get("lastK")
+_RAG     = os.environ.get("rag")
+_RAG_K   = os.environ.get("ragK")
 _RAG_THR = os.environ.get("ragThr")
 
 def welcome(uid: str, user: str):
@@ -119,10 +119,11 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
         "resume_editing": rsme,
         "date": datetime.now(timezone.utc).isoformat(),
         }
-    _LOGGER.info(f"USER QUERY: {json.dumps(query, separators=(',', ':'))}")
     
+    _LOGGER.info(f"User Query: {json.dumps(query, separators=(',', ':'))}")    
     query = json.dumps(query, indent=4)
 
+    _LOGGER.info(f"Model info: model {_MODEL}, temp: {_TEMP}, lastK: {_LAST_K}, rag_usage: {_RAG}, rag_k: {_RAG_K}, rag_threshold: {_RAG_THR}, session_id: {sid}")
     resp = generate(
         model=_MODEL,
         system=system,
