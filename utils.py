@@ -82,7 +82,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         return (str(""), False)
 
 
-def _get_resume_editing(uid: str) -> bool:
+def _get_resume_editing(uid: str):
     """
     Get the resume_editing variable from the table
     """
@@ -91,13 +91,14 @@ def _get_resume_editing(uid: str) -> bool:
         resp = _TABLE.get_item(Key={"uid": uid})
         if "Item" in resp:
             resume_editing = resp["Item"]["resume_editing"]
-            _LOGGER.info(f"User <{uid}> has resume_editing: {resume_editing}")
-
-            return bool(resume_editing)
+            if resume_editing == None:
+                _LOGGER.info(f"User <{uid}> has no resume_editing status.")
+                return None
+            else:
+                _LOGGER.info(f"User <{uid}> has resume_editing: {resume_editing}")
+                return resume_editing
         else:
-            _LOGGER.info(f"User <uid> has no resume_editing item. Set to default (None)")
-            return None
-
+            raise LookupError
     except Exception as e:
         _LOGGER.error(f"Error accessing DynamoDB for SID: {e}", exc_info=True)
         return None
