@@ -5,3 +5,4 @@ config/.env
 config\.env
 /logs
 /config
+config/.env
