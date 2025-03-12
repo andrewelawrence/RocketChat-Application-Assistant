@@ -62,12 +62,16 @@ def extract(data) -> tuple:
     uid  = data.get("user_id", "UnknownUserID")
     user = data.get("user_name", "UnknownUserName")
     msg  = data.get("text", "")
-    files = data["message"].get("files", False)
-    
+        
     uid  = _validate(uid, "uid", str, "UnknownUserID", _LOGGER.warning)
     user = _validate(user, "user", str, "UnknownUserName", _LOGGER.warning)
     msg  = _validate(msg, "msg", str, "", _LOGGER.warning)
     
+    try:
+        files = data["message"].get("files", False)
+    except KeyError:
+        files = []
+
     if not _UID_RE.match(uid):
         _LOGGER.warning(f"Potentially invalid characters in user_id: {uid}")
         
