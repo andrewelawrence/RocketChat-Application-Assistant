@@ -6,3 +6,4 @@ config\.env
 /logs
 /config
 config/.env
+/uploads
