@@ -138,26 +138,31 @@ def safe_load_text(filepath : str) -> dict:
     
 
 def put_rsme(uid: str, rsme: bool) -> bool:
-    """ 
-    Add the satus of the rsme choice to the dynamo table
+    """
+    Update the 'rsme' attribute for a given user in the DynamoDB table.
+    
+    If the item with the specified uid does not exist, it is created with the provided 'rsme' value.
+    
+    Parameters:
+        uid (str): The unique identifier of the user.
+        rsme (bool): The resume editing mode status.
+        
+    Returns:
+        bool: True if the update/creation was successful, otherwise False.
     """
     try:
-
-        # init user data structure
-        status = {
-            "uid": uid,                                  
-            "rsme": rsme                
-        }        
-        
-        # Store interaction in DynamoDB
-        _TABLE.put_item(Item=status)
-        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
+        _TABLE.update_item(
+            Key={"uid": uid},
+            UpdateExpression="SET rsme = :rsme",
+            ExpressionAttributeValues={":rsme": rsme},
+            ReturnValues="UPDATED_NEW"
+        )
+        _LOGGER.info(f"Resume path choice <rsme> = '{rsme}' saved for user <{uid}>.")
         return True
-        
     except Exception as e:
         _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
-        return False   
-
+        return False
+    
 
 def scrape(sid: str, msg: str) -> tuple:
     """
@@ -404,7 +409,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
             return (str(sid), False)
 
         # If no SID, try to assign a free SID.
-        resp = _TABLE.get_item(Key={"uid": "free"})
+        resp = _TABLE.get_item(Key={"uid": "free"}) # "free" because thats the UID
         if "Item" in resp:
             sid = resp["Item"]["sid"]
             _TABLE.delete_item(Key={"uid": "free"}) # Remove free SID after assignment
@@ -446,7 +451,7 @@ def _get_rsme(uid: str) -> bool | None:
         else:
             raise LookupError
     except Exception as e:
-        _LOGGER.info("Error accessing DynamoDB for resume editing status. Assuming rsme is None.", exc_info=True)
+        _LOGGER.info("Error accessing DynamoDB for resume editing status. Assuming rsme is None.", exc_info=False)
         return None
 
 
