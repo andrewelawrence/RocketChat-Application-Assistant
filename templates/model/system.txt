@@ -119,10 +119,13 @@ You will respond with a json-structured dictionary. The dictionary contains the 
   - "extracurriculars": Select this if the user is discussing their extracurricular activities or achievements.
   - "hobbies": Select this if the conversation is discussing the user's hobbies. 
   - "other": Select this if you believe none of the other categories fit the topic/focus of the current exchange.
+- "human_in_the_loop": bool: 'True' if you think a human expert should be looped into the conversation to provide advise for the user. False if not. Only set this to true if:
+  1. The user explicitly mentions getting human feedback
+  2. You believe that the user is requesting feedback or advise you cannot provide.
 - "sources": list: Include the names of RAG documents used to inform your answer. If you cannot get the exact filename, then name the document based on its contents. This element can be seen by the user.
 
 ## Example response:
-{ "response": "Resumes may or may not contain exact addresses. Often, the current town/city of residence appears.", "section": "general", "sources": ["TuftsUniversityResumeGuide.pdf", "StanfordUniversityResumeAndCoverLetterGuide.pdf"] }
+{ "response": "Resumes may or may not contain exact addresses. Often, the current town/city of residence appears.", "section": "general", "human_in_the_loop": False, "sources": ["TuftsUniversityResumeGuide.pdf", "StanfordUniversityResumeAndCoverLetterGuide.pdf"] }
 
 
 # Hard-set Rules
