@@ -1,7 +1,7 @@
 # utils.py
 # TODO: see upload() & extract()
 
-import os, re, time, hashlib, boto3, requests
+import os, re, time, hashlib, boto3, requests, json
 from config import get_logger
 from llmproxy import retrieve, pdf_upload, text_upload
 from flask import jsonify, session
@@ -24,13 +24,31 @@ _S3_BUCKET = _BOTO3_SESSION.client("s3")
 _DYNAMO_DB = _BOTO3_SESSION.resource("dynamodb")
 _TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 
+# General Session Info
+_GUIDES_SID = os.environ.get("guidesSid")
+_RAG_THR = os.environ.get("ragThr")
+_RAG_K = os.environ.get("ragK")
+
 # restrict valid uids
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
+
+# File Uploading and Accessing through RocketChat
+ROCKET_CHAT_URL = os.environ.get("rocketUrl")
+ROCKET_USER_ID = os.environ.get("rocketUid")
+ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
+
+# File temporary section
+UPLOAD_FOLDER = os.getcwd() + "/tmp"
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+
 
 def _gen_sid() -> str:
     """Generate a hashed SID from the epoch time (or any other scheme)."""
     _HASH.update(str(time.time()).encode('utf-8'))
     return _HASH.hexdigest()[:10]
+
 
 def _new_sid() -> bool:
     try:
@@ -48,7 +66,8 @@ def _new_sid() -> bool:
     except Exception as e:
         _LOGGER.error(f"Error creating overhead SID in DynamoDB: {e}", exc_info=True)
         return False
-        
+       
+
 def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
     """Determine if the UID is already tied to a SID. Otherwise, create a new SID."""
     sid = ""
@@ -82,7 +101,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         return (str(""), False)
 
 
-def _get_resume_editing(uid: str):
+def _get_rsme(uid: str):
     """
     Get the resume_editing variable from the table
     """
@@ -90,17 +109,17 @@ def _get_resume_editing(uid: str):
     try:
         resp = _TABLE.get_item(Key={"uid": uid})
         if "Item" in resp:
-            resume_editing = resp["Item"]["resume_editing"]
-            if resume_editing == None:
-                _LOGGER.info(f"User <{uid}> has no resume_editing status.")
+            rsme = resp["Item"]["rsme"]
+            if rsme == None:
+                _LOGGER.info(f"User <{uid}> has no rsme status.")
                 return None
             else:
-                _LOGGER.info(f"User <{uid}> has resume_editing: {resume_editing}")
-                return resume_editing
+                _LOGGER.info(f"User <{uid}> has rmse: {rsme}")
+                return rsme
         else:
             raise LookupError
     except Exception as e:
-        _LOGGER.error(f"Error accessing DynamoDB for SID: {e}", exc_info=True)
+        _LOGGER.error(f"Error accessing DynamoDB for SID: Item LookupError. Assuming <rsme> is None.")
         return None
 
 
@@ -121,8 +140,11 @@ def _validate(vValue, vName : str = "unknown", vType : type = str,
     
     return vValue
 
-def _store_interaction(data: dict, user: str, uid: str, sid: str, resume_editing: bool) -> bool:
-    """Stores the data payload in DynamoDB instead of local files."""
+def _store_interaction(data: dict, user: str, uid: str, sid: str, 
+                       rsme: bool) -> bool:
+    """
+    Stores the data payload in DynamoDB instead of local files.
+    """
     
     try:
         timestamp = data.get("timestamp", "UnknownTimestamp")
@@ -138,7 +160,7 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str, resume_editing
             "token": data.get("token", ""),
             "bot": data.get("bot", False),
             "url": data.get("siteUrl", ""),
-            "resume_editing": resume_editing
+            "rsme": rsme
         }        
         
         # Store interaction in DynamoDB
@@ -150,21 +172,21 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str, resume_editing
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
         return False   
 
-def put_resume_editing(uid: str, resume_editing: bool) -> None:
+def put_rsme(uid: str, rsme: bool) -> None:
     """ 
-    Add the satus of the resume_editing choice to the dynamo table
+    Add the satus of the rsme choice to the dynamo table
     """
     try:
 
         # init user data structure
         status = {
             "uid": uid,                                  
-            "resume_editing": resume_editing                
+            "rsme": rsme                
         }        
         
         # Store interaction in DynamoDB
         _TABLE.put_item(Item=status)
-        _LOGGER.info(f"Resume path choice saved for user <{uid}>.")
+        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
         return True
         
     except Exception as e:
@@ -340,21 +362,17 @@ def extract(data) -> tuple:
     sid, new = _get_sid(uid, user)
 
     # Fetch the resume status from DynamoDB
-    resume_editing = _get_resume_editing(uid)
-    _LOGGER.info(f"resume_editing status: {resume_editing}")
+    rsme = _get_rsme(uid)
+    _LOGGER.info(f"<rsme> status: {rsme}")
     
     # Store conversation in DynamoDB
-    _store_interaction(data, user, uid, sid, resume_editing)
+    _store_interaction(data, user, uid, sid, rsme)
 
-    return (user, uid, new, sid, msg, resume_editing)
-
-_GUIDES_SID = os.environ.get("guidesSid")
-_RAG_THR = os.environ.get("ragThr")
-_RAG_K = os.environ.get("ragK")
+    return (user, uid, new, sid, msg, rsme)
 
 def guides(msg: str):
     message = (
-        "Please provide any salient information on drafting effective resumes related to the following prompt:\n\n"
+        "Please provide any salient information on drafting effective resumes related to the following prompt:\n"
         + msg)
     
     resp = retrieve(
@@ -364,20 +382,12 @@ def guides(msg: str):
         rag_k= _RAG_K
         )
     
-    _LOGGER.info(f"Guides supplied info: {resp}")
-    return resp
-
-
-# File Uploading and Accessing through RocketChat
-ROCKET_CHAT_URL = os.environ.get("rocketUrl")
-ROCKET_USER_ID = os.environ.get("rocketUid")
-ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
-
-# File temporary section
-UPLOAD_FOLDER = os.getcwd() + "/tmp"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+    if not resp: # if resp is empty
+        _LOGGER.info("No guiding info found.")
+        return "No extra context retrieved."
+    else:
+        _LOGGER.info(f"Guides supplied info: {resp}")
+        return json.dumps(resp)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -456,12 +466,12 @@ def send_files(data, sid):
                 _LOGGER.info(f"Failed to download file")
                 return jsonify({"error": "Failed to download file"}), 500
             
-        
+        # Commented out for now because of double messages sent - unnecessary.
         # Send message with the downloaded file
-        message_text = f"File(s) uploaded by {user}"
-        for saved_file in saved_files:
-            send_message_with_file(room_id, message_text, saved_file)
-            _LOGGER.info(f"Sending message with {saved_file}\n")
+        # message_text = f"File(s) uploaded by {user}"
+        # for saved_file in saved_files:
+        #     send_message_with_file(room_id, message_text, saved_file)
+        #     _LOGGER.info(f"Sending message with {saved_file}\n")
 
         _LOGGER.info(f"Files processed and re-sent successfully!")
         return jsonify({"text": "Files processed and re-sent successfully!"})
