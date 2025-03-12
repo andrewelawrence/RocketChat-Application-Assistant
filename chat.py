@@ -139,11 +139,13 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
 
     try:
         rag = resp.get(['rag_context'])
-        resp = resp.get(['response']) # now resp is exclusively the inner "response"
+        resp = json.loads(resp.get(['response'])) 
+            # now resp is exclusively the inner "response"
         section = resp.get(['section'], "general")
         sources = resp.get(['sources'], [])
         incl_human = resp.get(['human_in_the_loop'], False)
-        resp = resp.get(['response'], "Error; notify the team.") # nnw response is exclusively the innermost "response" - the real message
+        resp = resp.get(['response'], "Error; notify the team.") 
+            # now response is exclusively the innermost "response" - the real message
 
         # Prepare buttons for user action
         buttons = [{
