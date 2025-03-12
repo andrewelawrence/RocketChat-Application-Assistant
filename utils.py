@@ -7,7 +7,7 @@ from urlextract import URLExtract
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
 from config import get_logger
-from llmproxy import retrieve, pdf_upload, text_upload, generate
+from llmproxy import retrieve, pdf_upload, text_upload
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -275,49 +275,15 @@ def update_resume_summary(sid, section, content):
 # 🚀 FUNCTION: Send Resume for Review
 # -------------------------
 
-from datetime import datetime, timezone
-
 def send_resume_for_review(sid):
     """
-    Generates a structured summary of the conversation so far and sends it to a career specialist.
+    Sends a basic review request message with approve/deny buttons.
     """
-    _LOGGER.info(f"Generating resume summary for expert review - Session: {sid}")
+    _LOGGER.info(f"Sending resume review request for session {sid}")
 
-    # Construct the query to summarize the conversation instead of relying on session
-    query = {
-        "msg": "Summarize the user's resume progress and edits in a structured format for expert review.",
-        "gbl_context": "Use all available data from the conversation so far to create a structured resume summary.",
-        "resume_editing": True,
-        "date": datetime.now(timezone.utc).isoformat(),
-    }
+    message_text = "📨 A resume review request has been submitted. Please review and take action below."
 
-    # Call the generate() function to create the summary
-    _LOGGER.info(f"Generating summary with query: {query}")
-    response = generate(
-        model=str(_MODEL),
-        system="Summarize the user's resume-building progress and suggested edits in a structured format.",
-        query=json.dumps(query),
-        temperature=0.5,
-        lastk=10,  # Look further back in conversation history
-        rag_usage=False,
-        rag_k=0,
-        rag_threshold=0.0,
-        session_id=str(sid),
-    )
-
-    # Parse response
-    generated_summary = response.get("response", "Summary generation failed.")
-
-    _LOGGER.info(f"Generated resume summary: {generated_summary}")
-
-    # Construct message text
-    message_text = (
-        f"📨 **Resume Review Request** 📨\n\n"
-        f"🔹 **Generated Resume Summary:**\n{generated_summary}\n\n"
-        f"Please review and provide feedback below."
-    )
-
-    # Send to Rocket.Chat
+    # Rocket.Chat API setup
     rocket_url = os.getenv("rocketUrl")
     rocket_user_id = os.getenv("rocketUid")
     rocket_token = os.getenv("rocketToken")
@@ -367,7 +333,6 @@ def send_resume_for_review(sid):
     except Exception as e:
         _LOGGER.error(f"Failed to parse response from Rocket.Chat: {e}")
         return {"error": "Invalid response from Rocket.Chat"}
-
 
 # -------------------------
 # 🚀 FUNCTION: Test Message to Rocket.Chat
