@@ -6,7 +6,7 @@ Flask==2.2.2
 flask_cors==5.0.1
 gunicorn==20.1.0
 itsdangerous==2.1.2
-Jinja2==3.1.2
+Jinja2==3.1.6
 lxml_html_clean==0.4.1
 MarkupSafe==2.1.1
 Requests==2.32.3
