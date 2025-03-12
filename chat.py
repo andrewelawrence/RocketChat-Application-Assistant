@@ -231,8 +231,12 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
     elif msg == "send_to_specialist":
         _LOGGER.info(f"User {sid} confirmed sending resume to expert.")
 
-            test_send_resume_for_review(sid):
-            # send_resume_for_review(sid)
+        # Call the test function for now
+        test_send_resume_for_review(sid)
+        
+        # Uncomment this when you want to use the full resume send function
+        # send_resume_for_review(sid)
+
         return jsonify({"text": "📨 Your resume has been sent to a career specialist for review!"})
 
     # **Expert Approves Resume**
