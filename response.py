@@ -2,52 +2,138 @@
 
 from flask import jsonify
 from config import get_logger
-from utils import scrape, guides, send_files, put_rsme
+from utils import scrape, guides, upload, put_rsme
 from chat import welcome, respond as chatRespond
 
-# filespaths, logging, etc.
+# Setup logging
 _LOGGER = get_logger(__name__)
 
-def respond(data: dict, user: str, uid: str, new: bool, sid: str, msg: str, files, rsme: bool):
-    # Handle welcome message for new users
+def respond(data: dict, user: str, uid: str, new: bool, sid: str, msg: str, 
+            files, rsme: bool):
+    """
+    Dispatch user requests to the appropriate handler based on input flags and content.
+
+    Parameters:
+        data (dict): All request data.
+        user (str): Username of the client.
+        uid (str): Unique identifier for the user.
+        new (bool): Flag indicating whether the user is new.
+        sid (str): Session identifier.
+        msg (str): The message or command issued by the user.
+        files: Files attached in the request.
+        rsme (bool): Flag indicating resume mode (edit - T vs create - F).
+
+    Returns:
+        A Flask JSON response with the appropriate message.
+    """
     if new:
         _LOGGER.info(f"New user detected: {user}. Processing welcome & file upload.")
         return welcome(uid, user)
     
-    # Handle file uploads
-    elif "message" in data and "files" in data["message"]:
-        _LOGGER.info(f"Detected file upload from {user}. Files: {data['message']['files']}")
-        
-        file_success = send_files(data, sid)
-        _LOGGER.info(f"File upload status: {file_success}")
-        
-        if file_success:
-            return jsonify({"text": "✅ File successfully uploaded! What's next?"})
-        else:
-            return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
-    
-    # Handle resume creation and editing commands
-    elif msg == "resume_create":
+    if _files_attached(data):
+        return _handle_files(data, user, sid)    
+
+    if msg == "resume_create":
         rsme = False
-        put_rsme(uid, rsme)
-        return jsonify({"text": "✍️ We're now creating a new resume. Where should we start?"})
+        return _rsme(uid, rsme)
     elif msg == "resume_edit":
         rsme = True
-        put_rsme(uid, rsme)
-        return jsonify({"text": "📨 Send me your existing resume as a '.pdf' file to get started!"})
+        return _rsme(uid, rsme)
     elif rsme == None:
-        return jsonify({"text": "‼️Please choose one of the two options above for working on your resume."})
+        return jsonify({"text": "‼️ Please choose one of the two options above for working on your resume."})
 
-    # Default query handling if none of the above matched
+    return _default(data, user, uid, new, sid, msg, files, rsme)
+
+def _files_attached(data: dict) -> bool:
+    """
+    Check if the request data includes file upload information.
+
+    Parameters:
+        data (dict): The incoming request data.
+
+    Returns:
+        bool: True if file upload data is detected, otherwise False.
+    """
+    return "message" in data and "files" in data["message"]
+
+
+def _handle_files(data: dict, user: str, sid: str):
+    """
+    Process file uploads from the user.
+
+    Parameters:
+        data (dict): The request data containing file info.
+        user (str): Username of the client.
+        sid (str): Session identifier.
+
+    Returns:
+        A Flask JSON response indicating success or failure of file upload.
+    """
+    _LOGGER.info(f"Detected file upload from {user}. Files: {data['message']['files']}")
+    file_success = upload(data, sid)
+    _LOGGER.info(f"File upload status: {file_success}")
+
+    if file_success:
+        return jsonify({"text": "✅ File successfully uploaded! What's next?"})
     else:
-        _LOGGER.info(f"Processing user query: {msg}")
-        # TODO: fix urls
-        # If links are in the msg, load their content into the session
-        has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
-        _LOGGER.info(f"URL EXTR: has_urls <{has_urls}>, url_uploads_failed <{url_uploads_failed}>, urls_failed <{urls_failed}>")
-        
-        gbl = guides(msg)  
-        _LOGGER.info(f"Guiding info retrieved: {gbl}")      
+        return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
 
-        return chatRespond(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, 
-                       gbl_context=gbl, rsme=rsme)
+
+def _rsme(uid: str, rsme: bool):
+    """
+    Process resume selection.
+
+    Parameters:
+        uid (str): Unique identifier for the user.
+        rsme (bool): Flag indicating resume mode (edit - T vs create - F).
+
+
+    Returns:
+        A Flask JSON response prompting the next step in resume creation.
+    """
+    # Resume editing mode is off when creating a new resume.
+    put_rsme(uid, rsme)
+    
+    if rsme:
+        return jsonify({"text": "📨 Send me your existing resume as a '.pdf' file to get started!"})
+    else:
+        return jsonify({"text": "✍️ We're now creating a new resume. Where should we start?"})
+
+
+def _default(data: dict, user: str, uid: str, new: bool, sid: str, msg: str, 
+            files, rsme: bool):
+    """
+    Process a generic user query by (TODO) handling URL extraction and (IN 
+    PROGRESS) guiding context, then forwarding the request to the chat response 
+    handler.
+
+    This function logs the incoming message, attempts to scrape any URLs from the
+    message to load their content into the session, and retrieves guiding information
+    based on the user's query. Finally, it calls the chat response function to generate
+    an appropriate response.
+
+    Parameters:
+        data (dict): The incoming request data which may contain additional message details.
+        user (str): The username of the client.
+        uid (str): The unique identifier for the user.
+        new (bool): A flag indicating whether the user is new (unused in this default handler).
+        sid (str): The session identifier.
+        msg (str): The user's message or query.
+        files: Attached files (if any), though not directly used in this handler.
+        rsme (bool): Flag indicating resume mode (edit - T vs create - F).
+
+    Returns:
+        A Flask JSON response generated by the chat response function based on the processed query.
+    """
+    _LOGGER.info(f"Processing user query: {msg}")
+    
+    # TODO: fix urls page loading
+    has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
+    _LOGGER.info(f"URL EXTR: has_urls <{has_urls}>, url_uploads_failed <{url_uploads_failed}>, urls_failed <{urls_failed}>")
+    
+    # TODO: confirm working status
+    gbl = guides(msg)  
+    _LOGGER.info(f"Guiding info retrieved: {gbl}")      
+
+    return chatRespond(msg=msg, sid=sid, has_urls=has_urls, 
+                       urls_failed=urls_failed, gbl=gbl, rsme=rsme)

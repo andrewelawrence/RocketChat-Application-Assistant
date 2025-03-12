@@ -7,13 +7,13 @@ from config import get_logger
 from utils import extract
 from response import respond
 
-# setup logging
+# Setup logging
 _LOGGER = get_logger(__name__)
 
 # Creates a Flask app instance so Flask can locate resources. 
 app = Flask(__name__)
 
-# Check for dev state.
+# Check for dev state. Will raise an error if in Koyeb environment.
 try:
     _ENV      = os.environ.get("flaskEnv")
     _DEV_HOST = os.environ.get("flaskHost")
@@ -26,18 +26,33 @@ try:
         CORS(app)
 except:
     _ENV = ""
-
-# Main app route; querying the chatbot and sending responses back.
+    
 @app.route('/query', methods=['POST'])
-def main(): 
+def main():
+    """
+    Handles chatbot query requests via HTTP POST.
+
+    This function:
+    - Ensures the request is in JSON format.
+    - Extracts relevant user information from the request payload.
+    - Logs request details and extracted user data.
+    - Ignores bot-generated messages.
+    - Passes the extracted data to the chatbot response handler.
+
+    Returns:
+        - JSON response from `respond()` if the request is valid.
+        - HTTP 400 error if the request is not JSON.
+        - JSON response indicating ignored bot messages.   
+    """    
     # Delineate logs
-    _LOGGER.info(f"========== NEW INTERACTION ==========")
+    _LOGGER.info(" ")
+    _LOGGER.info(" ")
     
     # Enforce only JSON requests
     if not request.is_json:
-        _LOGGER.warning("Non-JSON request blocked.")
-        return jsonify({"error": "Invalid content type"}), 400
-    
+        _LOGGER.warning("Error: Non-JSON request. Request blocked.")
+        return jsonify({"error": "Invalid content type"}), 400   
+     
     # Get data and log it
     data = request.get_json() 
     _LOGGER.info(f"HTTP POST: {data}")
@@ -56,7 +71,18 @@ def main():
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
 def dev():
-    # Restricts access if environment variables improperly setup
+    """
+    Serves the development interface page.
+
+    This function:
+    - Restricts access to only when the app is running in "dev" mode.
+    - Logs an access attempt to the dev page.
+    - Renders a development page for testing, which interacts with `/query`.
+
+    Returns:
+        - Rendered HTML template of the dev page if in dev environment.
+        - Default response if not in dev mode.
+    """
     if _ENV != "dev":
         _LOGGER.warning("Attempted access to /dev but not in dev environment.")
         return default()
@@ -67,16 +93,46 @@ def dev():
 # Default page
 @app.route('/')
 def default():   
-   return jsonify({"message":'There is nothing on this page. Please return to where you came from!'})
+    """
+    Serves the default response for the root URL.
+
+    This function:
+    - Returns a simple JSON message informing users that there is nothing on this page.
+
+    Returns:
+        - JSON response with a message indicating the page is empty.
+    """
+    return jsonify({"message":'There is nothing on this page. Please return to where you came from!'})
 
 # Error page
 @app.errorhandler(404)
 def page_not_found(e):
+    """
+    Handles 404 errors (Page Not Found).
+
+    This function:
+    - Returns a simple text response for any invalid URL.
+
+    Args:
+        e (Exception): The error object (not used in the response).
+
+    Returns:
+        - String message "Error 404: Page Not Found" with HTTP status 404.
+    """
     return "Error 404: Page Not Found", 404
 
 # App startup
 if __name__ == "__main__":
-    # If dev state, run verbosely and host locally
+    """
+    Runs the Flask application.
+
+    This function:
+    - Checks if the app is in "dev" mode.
+    - If in dev mode, enables debugging and runs locally on the configured host/port.
+    - Otherwise, starts the Flask server in production mode with debugging enabled.
+
+    The `use_reloader=True` in dev mode ensures changes are automatically reloaded.
+    """
     if _ENV == "dev":
         app.run(debug=True, use_reloader=True, host=_DEV_HOST, port=_DEV_PORT)
         

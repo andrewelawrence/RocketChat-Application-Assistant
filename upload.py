@@ -1,5 +1,5 @@
 # upload.py 
-# Used to manually add files to the common app RAG directory
+# Manually add files to the common app RAG directory
 # Note that this can only be used with .pdf files
 
 import os, sys

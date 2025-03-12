@@ -1,20 +1,21 @@
 # utils.py
-# TODO: see upload() & extract()
 
 import os, re, time, hashlib, boto3, requests, json
-from config import get_logger
-from llmproxy import retrieve, pdf_upload, text_upload
+from time import sleep
 from flask import jsonify, session
 from urlextract import URLExtract
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
-from time import sleep
+from config import get_logger
+from llmproxy import retrieve, pdf_upload, text_upload
 
 # setup logging
 _LOGGER = get_logger(__name__)
+
+# SID Hash
 _HASH = hashlib.sha1()
 
-# auth AWS connection
+# AWS connection
 _BOTO3_SESSION = boto3.Session(
    aws_access_key_id=os.environ.get("awsAccessKey"),
    aws_secret_access_key=os.environ.get("awsSecretKey"),
@@ -24,33 +25,241 @@ _S3_BUCKET = _BOTO3_SESSION.client("s3")
 _DYNAMO_DB = _BOTO3_SESSION.resource("dynamodb")
 _TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 
-# General Session Info
+# Global settings for guiding retrieval
 _GUIDES_SID = os.environ.get("guidesSid")
 _RAG_THR = os.environ.get("ragThr")
 _RAG_K = os.environ.get("ragK")
 
-# restrict valid uids
+# Regular expression to validate UIDs (alphanumeric only)
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
 
-# File Uploading and Accessing through RocketChat
-ROCKET_CHAT_URL = os.environ.get("rocketUrl")
-ROCKET_USER_ID = os.environ.get("rocketUid")
-ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
+# Rocket.Chat configuration for file uploads and messaging
+_ROCKET_URL = os.environ.get("rocketUrl")
+_ROCKET_UID = os.environ.get("rocketUid")
+_ROCKET_TOKEN = os.environ.get("rocketToken")
 
-# File temporary section
-UPLOAD_FOLDER = os.getcwd() + "/tmp"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'pdf'}
+# Temporary file upload folder and allowed file extensions
+_UPLOADS = os.path.join(os.getcwd(), "tmp")
+if not os.path.exists(_UPLOADS):
+    os.makedirs(_UPLOADS, exist_ok=True)
+_ALLOWED_FILES = {'pdf'}
+
+def extract(data) -> tuple:
+    """
+    Extract and validate user information from the incoming data.
+    Also stores the conversation history in DynamoDB.
+
+    Parameters:
+        data (dict): The input data containing user and message details.
+
+    Returns:
+        tuple: (username, uid, is_new_user, sid, message_text, file_info, resume_edit_status)
+    """    
+    if not isinstance(data, dict):
+        _LOGGER.warning("extract() called with non-dict data.")
+        return ("UnknownUserID", "UnknownUserName", "")
+    
+    uid  = data.get("user_id", "UnknownUserID")
+    user = data.get("user_name", "UnknownUserName")
+    msg  = data.get("text", "")
+    files = data["message"].get("files", False)
+    
+    uid  = _validate(uid, "uid", str, "UnknownUserID", _LOGGER.warning)
+    user = _validate(user, "user", str, "UnknownUserName", _LOGGER.warning)
+    msg  = _validate(msg, "msg", str, "", _LOGGER.warning)
+    
+    if not _UID_RE.match(uid):
+        _LOGGER.warning(f"Potentially invalid characters in user_id: {uid}")
+        
+    # Fetch/create SID from DynamoDB
+    sid, new = _get_sid(uid, user)
+
+    # Fetch the resume status from DynamoDB
+    rsme = _get_rsme(uid)
+    _LOGGER.info(f"<rsme> status: {rsme}")
+    
+    # Store conversation in DynamoDB
+    _store_interaction(data, user, uid, sid, bool(files), rsme)
+
+    return (user, uid, new, sid, msg, files, rsme)
+
+
+def guides(msg: str) -> str:
+    """
+    Retrieve guiding context for drafting effective resumes based on the provided prompt.
+
+    This function constructs a query by appending a resume-related request to the given message.
+    It then calls the 'retrieve' function (from the llmproxy module) with the configured session
+    and RAG parameters to obtain additional context for resume drafting. If no context is retrieved,
+    a default message is returned.
+
+    Parameters:
+        msg (str): The user prompt related to resume drafting.
+
+    Returns:
+        str: A JSON-formatted string containing the retrieved guiding information, or a default message 
+             indicating no extra context was retrieved.
+    """
+    message = (
+        "Please provide any salient information on drafting effective resumes related to the following prompt:\n"
+        + msg)
+    
+    resp = retrieve(
+        query = message,
+        session_id= _GUIDES_SID,
+        rag_threshold= _RAG_THR,
+        rag_k= _RAG_K
+        )
+    
+    if not resp: # if resp is empty
+        _LOGGER.info("No guiding info found.")
+        return "No extra context retrieved."
+    else:
+        _LOGGER.info(f"Guides supplied info: {resp}")
+        return json.dumps(resp)
+
+
+def safe_load_text(filepath : str) -> dict:
+    """
+    Safely read in file contents; return empty string if file not found.
+    """
+    if not os.path.exists(filepath):
+        return ""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()    
+    except Exception as e:
+        _LOGGER.error(f"Could not load text from {filepath}: {e}", exc_info=True)
+        return ""
+    
+
+def put_rsme(uid: str, rsme: bool) -> bool:
+    """ 
+    Add the satus of the rsme choice to the dynamo table
+    """
+    try:
+
+        # init user data structure
+        status = {
+            "uid": uid,                                  
+            "rsme": rsme                
+        }        
+        
+        # Store interaction in DynamoDB
+        _TABLE.put_item(Item=status)
+        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
+        return True
+        
+    except Exception as e:
+        _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
+        return False   
+
+
+def scrape(sid: str, msg: str) -> tuple:
+    """
+    returns status of if any url scrape failed, and a list of failed urls
+    
+    TODO: fix uploading page content to sid
+    TODO: see the github for an example of how to do it.
+    """
+    return (False, False, [])
+    # try:
+    #     urls = list(_extract_urls(msg))
+        
+    #     has_urls = bool(urls)
+    #     failed = False
+    #     failed_urls = list()
+        
+    #     for url in urls:
+    #         page = _robust_scrape(url)
+                        
+    #         if page == None: # ie. web-scraping failed
+    #             failed = True
+    #             failed_urls.append("url")
+    #         else:
+    #             _upload_page(sid, url, page)
+
+    #     return (has_urls, failed, failed_urls)
+
+    # except Exception as e:
+    #     _LOGGER
+    #     return (True, True, "An unknown error occurred when accessing sites; try uploading site content as a PDF.")
+    
+
+def upload(data, sid):
+    """
+    Process file attachments from the incoming data: download from Rocket.Chat,
+    upload to the session's RAG, and optionally notify via chat.
+
+    Parameters:
+        data (dict): The input data containing file attachment details.
+        session_id (str): The session identifier.
+
+    Returns:
+        A Flask JSON response indicating success or error.
+    """
+    user = data.get("user_name", "Unknown")
+    room_id = data.get("channel_id", "")
+    
+    # A file is sent by the user
+    if ("message" in data) and ('file' in data['message']):
+        _LOGGER.info(f"INFO - detected file by {user}.")
+        saved_files = []
+
+        for file_info in data["message"]["files"]:
+            file_id = file_info["_id"]
+            filename = file_info["name"]
+
+            # Download file
+            _LOGGER.info(f"Downloading file {filename} from Rocket.Chat.")
+            file_path = _download_file(file_id, filename)
+
+            if file_path:
+                saved_files.append(file_path)
+                # upload it to RAG so that session has the file
+                _LOGGER.info(f"Uploading file {file_path} to RAG...")
+                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
+                response = pdf_upload(
+                    path = file_path,
+                    session_id = sid,
+                    strategy = 'smart')
+                _LOGGER.info(f"Resp from RAG upload: {response}\n")
+                sleep(10) # so that documents are uploaded to RAG session
+
+            else:
+                _LOGGER.info(f"Failed to download file")
+                return jsonify({"error": "Failed to download file"}), 500
+            
+        # Commented out for now because of double messages sent - which is 
+        # unnecessary.
+        # Send message with the downloaded file
+        # message_text = f"File(s) uploaded by {user}"
+        # for saved_file in saved_files:
+        #     _send_message_with_file(room_id, message_text, saved_file)
+        #     _LOGGER.info(f"Sending message with {saved_file}\n")
+
+        _LOGGER.info(f"Files processed and re-sent successfully!")
+        return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
 def _gen_sid() -> str:
-    """Generate a hashed SID from the epoch time (or any other scheme)."""
+    """
+    Generate a unique session identifier (SID) using the current epoch time.
+
+    Returns:
+        str: A 10-character hexadecimal string.
+    """
     _HASH.update(str(time.time()).encode('utf-8'))
     return _HASH.hexdigest()[:10]
 
 
 def _new_sid() -> bool:
+    """
+    Reserve a new free session ID in the DynamoDB table for future assignment.
+
+    Returns:
+        bool: True if the free SID was successfully stored, otherwise False.
+    """
     try:
         sid = _gen_sid()
         _TABLE.put_item(
@@ -69,30 +278,40 @@ def _new_sid() -> bool:
        
 
 def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
-    """Determine if the UID is already tied to a SID. Otherwise, create a new SID."""
+    """
+    Retrieve the session ID (SID) associated with a given user ID (uid).
+    If no SID exists, assign a free or new SID to the user.
+
+    Parameters:
+        uid (str): The user's unique identifier.
+        username (str): The user's name (default is "UnknownName").
+
+    Returns:
+        tuple: A tuple (sid, is_new) where 'sid' is the session ID (str)
+               and 'is_new' is a boolean indicating if the user is new.
+    """
     sid = ""
+    
     try:
         # Check if SID already exists in DynamoDB
         resp = _TABLE.get_item(Key={"uid": uid})
         if "Item" in resp:
             sid = resp["Item"]["sid"]
             _LOGGER.info(f"User <{uid}> has existing SID <{sid}>")
-            # _new_sid() - generates a new sid even though the free sid should alr exist.s
             return (str(sid), False)
 
-        # If not, the user is new and so we return True for second part of Tuple
-        # Check if a "free" SID exists
+        # If no SID, try to assign a free SID.
         resp = _TABLE.get_item(Key={"uid": "free"})
         if "Item" in resp:
             sid = resp["Item"]["sid"]
-            _TABLE.delete_item(Key={"uid": "free"})  # Remove old free SID
+            _TABLE.delete_item(Key={"uid": "free"}) # Remove free SID after assignment
             _LOGGER.info(f"Assigned existing free SID <{sid}> to user <{uid}>")
         # If not, create a new SID and store it
         else:
             sid = _gen_sid()
             _LOGGER.info(f"No free SID found. Created new SID <{sid}> for user <{uid}>")
 
-        # Store new SID for the user
+        # Reserve another free SID for future assignments.
         _new_sid()
         return (str(sid), True)
     
@@ -103,23 +322,28 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
 
 def _get_rsme(uid: str) -> bool | None:
     """
-    Get the resume_editing variable from the table
-    """
+    Retrieve the resume editing (rsme) status for a user from DynamoDB.
 
+    Parameters:
+        uid (str): The user's unique identifier.
+
+    Returns:
+        bool | None: The resume editing status if found, or None if not set or on error.
+    """
     try:
         resp = _TABLE.get_item(Key={"uid": uid})
         if "Item" in resp:
             rsme = resp["Item"]["rsme"]
             if rsme == None:
-                _LOGGER.info(f"User <{uid}> has no rsme status.")
+                _LOGGER.info(f"User <{uid}> has no resume editing status set.")
                 return None
             else:
-                _LOGGER.info(f"User <{uid}> has rmse: {rsme}")
+                _LOGGER.info(f"User <{uid}> has resumes editing status: {rsme}")
                 return rsme
         else:
             raise LookupError
     except Exception as e:
-        _LOGGER.error(f"Error accessing DynamoDB for SID: Item LookupError. Assuming <rsme> is None.")
+        _LOGGER.info("Error accessing DynamoDB for resume editing status. Assuming rsme is None.", exc_info=True)
         return None
 
 
@@ -127,9 +351,18 @@ def _validate(vValue, vName : str = "unknown", vType : type = str,
               vValueDefault = None,
               log_level = _LOGGER.warning):
     """
-    Verify that 'vValue' is an instance of 'vType'.
-    If not, log a message at 'log_level' and return 'vValueDefault'.
-    Otherwise, return 'vValue'.
+    Validate that 'value' is an instance of 'expected_type'.
+    Logs a warning and returns 'default_value' if the check fails.
+
+    Parameters:
+        value: The value to validate.
+        value_name (str): The name of the value (for logging purposes).
+        expected_type (type): The expected type of the value.
+        default_value: The default value to return if validation fails.
+        log_level: The logging level to use if validation fails.
+
+    Returns:
+        The original value if valid; otherwise, the default_value.
     """
     if not isinstance(vValue, vType):
         _LOGGER.log(
@@ -140,12 +373,23 @@ def _validate(vValue, vName : str = "unknown", vType : type = str,
     
     return vValue
 
+
 def _store_interaction(data: dict, user: str, uid: str, sid: str, files: bool,
                        rsme: bool) -> bool:
     """
-    Stores the data payload in DynamoDB instead of local files.
-    """
-    
+    Store conversation interaction data in the DynamoDB table.
+
+    Parameters:
+        interaction_data (dict): The full payload of interaction data.
+        username (str): The user's name.
+        uid (str): The user's unique identifier.
+        sid (str): The session identifier.
+        has_files (bool): Flag indicating whether files were attached.
+        rsme_status (bool): The resume editing status.
+
+    Returns:
+        bool: True if the interaction was successfully stored, otherwise False.
+    """    
     try:
         timestamp = data.get("timestamp", "UnknownTimestamp")
 
@@ -173,25 +417,6 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str, files: bool,
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
         return False   
 
-
-# Tool to return the webpage based on URL
-# def get_page(url):
-
-#     if response.status_code == 200:
-#         soup = BeautifulSoup(response.text, "html.parser")
-        
-#         # Extracting the main content (removing scripts, styles, and ads)
-#         for unwanted in soup(["script", "style", "header", "footer", "nav", "aside"]):
-#             unwanted.extract()  # Remove these elements
-
-#         text = soup.get_text(separator=" ", strip=True)  # Extract clean text
-
-#         # Limit length to avoid very long output
-#         clean_text = " ".join(text.split())  # First 500 words
-#         return clean_text
-        
-#     else:
-#         return f"Failed to fetch {url}, status code: {response.status_code}"
 
 def _upload_page(sid: str, url: str, page: str) -> bool:
     """Upload page contents to session RAG as text files"""
@@ -283,142 +508,24 @@ def _robust_scrape(url: str) -> str | None:
     return None
 
 
-# used in query to load system prompt
-def safe_load_text(filepath : str) -> dict:
-    """Safely read in file contents; return empty string if file not found."""
-    if not os.path.exists(filepath):
-        return ""
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return f.read()    
-    except Exception as e:
-        _LOGGER.error(f"Could not load text from {filepath}: {e}", exc_info=True)
-        return ""
-    
-
-def put_rsme(uid: str, rsme: bool) -> bool:
-    """ 
-    Add the satus of the rsme choice to the dynamo table
-    """
-    try:
-
-        # init user data structure
-        status = {
-            "uid": uid,                                  
-            "rsme": rsme                
-        }        
-        
-        # Store interaction in DynamoDB
-        _TABLE.put_item(Item=status)
-        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
-        return True
-        
-    except Exception as e:
-        _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
-        return False   
-
-
-def scrape(sid: str, msg: str) -> tuple:
-    """
-    returns status of if any url scrape failed, and a list of failed urls
-    """
-    try:
-        urls = list(_extract_urls(msg))
-        
-        has_urls = bool(urls)
-        failed = False
-        failed_urls = list()
-        
-        for url in urls:
-            page = _robust_scrape(url)
-                        
-            if page == None: # ie. web-scraping failed
-                failed = True
-                failed_urls.append("url")
-            else:
-                _upload_page(sid, url, page)
-
-        return (has_urls, failed, failed_urls)
-
-    except Exception as e:
-        _LOGGER
-        return (True, True, "An unknown error occurred when accessing sites; try uploading site content as a PDF.")
-
-
-def extract(data) -> tuple:
-    """
-    Extract user information and store conversation to DynamoDB.
-    
-    TODO: extract attached files & other media + upload metadata to the table
-    """
-    
-    if not isinstance(data, dict):
-        _LOGGER.warning("extract() called with non-dict data.")
-        return ("UnknownUserID", "UnknownUserName", "")
-    
-    uid  = data.get("user_id", "UnknownUserID")
-    user = data.get("user_name", "UnknownUserName")
-    msg  = data.get("text", "")
-    files = data["message"].get("files", False)
-    
-    uid  = _validate(uid, "uid", str, "UnknownUserID", _LOGGER.warning)
-    user = _validate(user, "user", str, "UnknownUserName", _LOGGER.warning)
-    msg  = _validate(msg, "msg", str, "", _LOGGER.warning)
-    
-    if not _UID_RE.match(uid):
-        _LOGGER.warning(f"Potentially invalid characters in user_id: {uid}")
-        
-    # Fetch/create SID from DynamoDB
-    sid, new = _get_sid(uid, user)
-
-    # Fetch the resume status from DynamoDB
-    rsme = _get_rsme(uid)
-    _LOGGER.info(f"<rsme> status: {rsme}")
-    
-    # Store conversation in DynamoDB
-    _store_interaction(data, user, uid, sid, bool(files), rsme)
-
-    return (user, uid, new, sid, msg, files, rsme)
-
-
-def guides(msg: str) -> str:
-    message = (
-        "Please provide any salient information on drafting effective resumes related to the following prompt:\n"
-        + msg)
-    
-    resp = retrieve(
-        query = message,
-        session_id= _GUIDES_SID,
-        rag_threshold= _RAG_THR,
-        rag_k= _RAG_K
-        )
-    
-    if not resp: # if resp is empty
-        _LOGGER.info("No guiding info found.")
-        return "No extra context retrieved."
-    else:
-        _LOGGER.info(f"Guides supplied info: {resp}")
-        return json.dumps(resp)
-
-
-def allowed_file(filename):
+def _allowed_files(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in _ALLOWED_FILES
 
 
-def download_file(file_id, filename):
+def _download_file(file_id, filename):
     """Download file from Rocket.Chat and save locally."""
 
-    if allowed_file(filename):
-        file_url = f"{ROCKET_CHAT_URL}/file-upload/{file_id}/{filename}"
+    if _allowed_files(filename):
+        file_url = f"{_ROCKET_URL}/file-upload/{file_id}/{filename}"
         headers = {
-            "X-User-Id": ROCKET_USER_ID,
-            "X-Auth-Token": ROCKET_AUTH_TOKEN
+            "X-User-Id": _ROCKET_UID,
+            "X-Auth-Token": _ROCKET_TOKEN
         }
 
         response = requests.get(file_url, headers=headers, stream=True)
         if response.status_code == 200:
-            local_path = os.path.join(UPLOAD_FOLDER, filename)
+            local_path = os.path.join(_UPLOADS, filename)
             _LOGGER.info(f"Local filepath: {local_path}")
             with open(local_path, "wb") as file:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -429,12 +536,12 @@ def download_file(file_id, filename):
     return None
 
 
-def send_message_with_file(room_id, message, file_path):
+def _send_message_with_file(room_id, message, file_path):
     """Send a message with the downloaded file back to the chat."""
-    url = f"{ROCKET_CHAT_URL}/api/v1/rooms.upload/{room_id}"
+    url = f"{_ROCKET_URL}/api/v1/rooms.upload/{room_id}"
     headers = {
-        "X-User-Id": ROCKET_USER_ID,
-        "X-Auth-Token": ROCKET_AUTH_TOKEN
+        "X-User-Id": _ROCKET_UID,
+        "X-Auth-Token": _ROCKET_TOKEN
     }
     files = {"file": (os.path.basename(file_path), open(file_path, "rb"))}
     data = {"msg": message}
@@ -446,52 +553,9 @@ def send_message_with_file(room_id, message, file_path):
         return response.json()
     except requests.exceptions.JSONDecodeError:
         return {"error": "Invalid JSON response from Rocket.Chat API", "raw_response": response.text}
-    
-
-def send_files(data, sid):
-    user = data.get("user_name", "Unknown")
-    room_id = data.get("channel_id", "")
-    # A file is sent by the user
-    if ("message" in data) and ('file' in data['message']):
-        _LOGGER.info(f"INFO - detected file by {user}.")
-        saved_files = []
-
-        for file_info in data["message"]["files"]:
-            file_id = file_info["_id"]
-            filename = file_info["name"]
-
-            # Download file
-            _LOGGER.info(f"Downloading file {filename} from Rocket.Chat.")
-            file_path = download_file(file_id, filename)
-
-            if file_path:
-                saved_files.append(file_path)
-                # upload it to RAG so that session has the file
-                _LOGGER.info(f"Uploading file {file_path} to RAG...")
-                _LOGGER.info(f"pdf_upload path = {file_path}, session_id = {sid}, strategy = {'smart'}")
-                response = pdf_upload(
-                    path = file_path,
-                    session_id = sid,
-                    strategy = 'smart')
-                _LOGGER.info(f"Resp from RAG upload: {response}\n")
-                sleep(10) # so that documents are uploaded to RAG session
-
-            else:
-                _LOGGER.info(f"Failed to download file")
-                return jsonify({"error": "Failed to download file"}), 500
-            
-        # Commented out for now because of double messages sent - unnecessary.
-        # Send message with the downloaded file
-        # message_text = f"File(s) uploaded by {user}"
-        # for saved_file in saved_files:
-        #     send_message_with_file(room_id, message_text, saved_file)
-        #     _LOGGER.info(f"Sending message with {saved_file}\n")
-
-        _LOGGER.info(f"Files processed and re-sent successfully!")
-        return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
-def update_resume_summary(sid, section, content):
+def _update_resume_summary(sid, section, content):
     """
     Updates the structured resume summary stored in session data.
     Keeps track of completed resume sections and content.
@@ -510,7 +574,7 @@ def update_resume_summary(sid, section, content):
     return formatted_summary
 
 
-def send_resume_for_review(sid):
+def _send_resume_for_review(sid):
     """
     Sends the formatted resume summary to a career specialist.
     """
