@@ -344,7 +344,7 @@ def extract(data) -> tuple:
     # Store conversation in DynamoDB
     _store_interaction(data, user, uid, sid, resume_editing)
 
-    return (user, uid, new, sid, msg)
+    return (user, uid, new, sid, msg, resume_editing)
 
 _GUIDES_SID = os.environ.get("guidesSid")
 _RAG_THR = os.environ.get("ragThr")
