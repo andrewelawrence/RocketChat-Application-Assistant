@@ -1,5 +1,4 @@
 # chat.py
-# TODO: see query(). 
 
 import os, json
 from flask import jsonify
@@ -51,7 +50,6 @@ def welcome(uid: str, user: str):
         ]
     }
     return jsonify(response)
-
 
 
 # main query function
@@ -160,9 +158,8 @@ def query(msg: str, sid: str,
     })
 
 
-
 def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
-            rsme: bool, gbl_context: str):
+            rsme: bool, gbl_context: str) -> dict:
 
     # Handling resume section updates
     if msg.lower().startswith(("create_", "edit_")):

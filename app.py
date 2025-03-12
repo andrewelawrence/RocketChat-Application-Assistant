@@ -4,8 +4,8 @@ import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
-from utils import extract, scrape, guides, send_files, send_resume_for_review, put_resume_editing
-from chat import welcome, respond
+from utils import extract
+from response import respond
 
 # setup logging
 _LOGGER = get_logger(__name__)
@@ -43,57 +43,16 @@ def main():
     _LOGGER.info(f"HTTP POST: {data}")
     
     # Extract relevant information plus collect & store user data
-    user, uid, new, sid, msg, rsme = extract(data)
-    _LOGGER.info(f"USER DATA: user <{user}>, new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse<{rsme}>")
+    user, uid, new, sid, msg, files, rsme = extract(data)
+    _LOGGER.info(f"USER DATA: user <{user}>, new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}")
 
     # Ignore bot messages.
     if bool(data.get("bot")) == True:
         _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
-
-    # Handle welcome message for new users
-    elif new:
-        _LOGGER.info(f"New user detected: {user}. Processing welcome & file upload.")
-        return welcome(uid, user)
-    
-    # Handle file uploads
-    elif "message" in data and "files" in data["message"]:
-        _LOGGER.info(f"Detected file upload from {user}. Files: {data['message']['files']}")
-        
-        file_success = send_files(data, sid)
-        _LOGGER.info(f"File upload status: {file_success}")
-        
-        if file_success:
-            return jsonify({"text": "✅ File successfully uploaded!"})
-        else:
-            return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
-    
-    # Handle resume creation and editing commands
-    elif msg == "resume_create":
-        rsme = False
-        put_resume_editing(uid, rsme)
-        return jsonify({"text": "You're now creating a new resume. Where should we start?"})
-    elif msg == "resume_edit":
-        rsme = True
-        put_resume_editing(uid, rsme)
-        return jsonify({"text": "Send me your existing resume as a '.pdf' file to get started!"})
-    
-    # Default query handling if none of the above matched
     else:
-        _LOGGER.info(f"Processing user query: {msg}")
-        # If links are in the msg, load their content into the session
-        has_urls, url_uploads_failed, urls_failed = scrape(sid, msg)
-        _LOGGER.info(f"URL EXTR: has_urls <{has_urls}>, url_uploads_failed <{url_uploads_failed}>, urls_failed <{urls_failed}>")
-        
-        if rsme == None:
-            return jsonify({"text": "Please select one of the two options above for working on your resume."})
-
-        gbl = guides(msg)  
-        _LOGGER.info(f"Guiding info retrieved: {gbl}")      
-
-        return respond(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, 
-                       gbl_context=gbl, rsme=rsme)
-
+        return respond(data, user, uid, new, sid, msg, files, rsme)
+    
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
 def dev():
