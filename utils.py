@@ -3,7 +3,7 @@
 
 import os, re, time, hashlib, boto3, requests
 from config import get_logger
-from llmproxy import upload, pdf_upload, text_upload
+from llmproxy import retrieve, pdf_upload, text_upload
 from flask import jsonify, session
 from urlextract import URLExtract
 from requests_html import HTMLSession
@@ -298,6 +298,24 @@ def extract(data) -> tuple:
 
     return (user, uid, new, sid, msg)
 
+_GUIDES_SID = os.environ.get("guidesSid")
+_RAG_THR = os.environ.get("ragThr")
+_RAG_K = os.environ.get("ragK")
+
+def guides(msg: str):
+    message = (
+        "Please provide any salient information on drafting effective resumes related to the following prompt:\n\n"
+        + msg)
+    
+    resp = retrieve(
+        query = message,
+        session_id= _GUIDES_SID,
+        rag_threshold= _RAG_THR,
+        rag_k= _RAG_K
+        )
+    
+    _LOGGER.info(f"Guides supplied info: {resp}")
+    return resp
 
 
 # File Uploading and Accessing through RocketChat
