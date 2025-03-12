@@ -419,8 +419,6 @@ def update_resume_summary(sid, section, content):
 
     return formatted_summary
 
-CAREER_SPECIALIST = "@michael.brady631208"  
-
 def send_resume_for_review(sid):
     """
     Sends the formatted resume summary to a career specialist.
@@ -436,21 +434,32 @@ def send_resume_for_review(sid):
     )
 
     message_text = (
-    f"🔎 **Resume Review Request** 🔎\n\n"
-    f"Here’s the updated section for review:\n\n"
-    f"{formatted_summary}"
+        f"🔎 **Resume Review Request** 🔎\n\n"
+        f"Here’s the updated section for review:\n\n"
+        f"{formatted_summary}"
     )
-    _LOGGER.info(f"Sending resume review request to specialist. Session: {sid}")
+    
+    _LOGGER.info(f"Attempting to send resume review request. Session: {sid}")
+    _LOGGER.debug(f"Formatted Message: {message_text}")  # Log the exact message being sent
 
-    # Send message to career specialist
-    url = f"{ROCKET_CHAT_URL}/api/v1/chat.postMessage"
+    # Fetch Rocket.Chat credentials correctly
+    rocket_url = os.getenv("rocketUrl")
+    rocket_user_id = os.getenv("rocketUid")
+    rocket_token = os.getenv("rocketToken")
+
+    if not rocket_url or not rocket_user_id or not rocket_token:
+        _LOGGER.error("Rocket.Chat environment variables are missing.")
+        return {"error": "Rocket.Chat credentials not found."}
+
+    # Rocket.Chat API setup
+    url = f"{rocket_url}/api/v1/chat.postMessage"
     headers = {
         "Content-Type": "application/json",
-        "X-Auth-Token": ROCKET_AUTH_TOKEN,
-        "X-User-Id": ROCKET_USER_ID
+        "X-Auth-Token": rocket_token,
+        "X-User-Id": rocket_user_id
     }
     payload = {
-        "channel": CAREER_SPECIALIST,
+        "channel": "@michael.brady631208",  # Make sure this username is correct
         "text": message_text,
         "attachments": [
             {
@@ -475,7 +484,17 @@ def send_resume_for_review(sid):
         ]
     }
 
-    response = requests.post(url, json=payload, headers=headers)
-    _LOGGER.info(f"Rocket.Chat response for sending resume: {response.json()}")
+    _LOGGER.debug(f"Rocket.Chat API Payload: {payload}")  # Log the full API request
 
-    return response.json()
+    response = requests.post(url, json=payload, headers=headers)
+    
+    _LOGGER.info(f"Rocket.Chat API Response Code: {response.status_code}")
+    
+    try:
+        response_data = response.json()
+        _LOGGER.debug(f"Rocket.Chat Response: {response_data}")  # Log the full response
+    except Exception as e:
+        _LOGGER.error(f"Failed to parse response from Rocket.Chat: {e}")
+        response_data = {"error": "Invalid response from Rocket.Chat"}
+
+    return response_data
