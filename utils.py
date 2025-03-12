@@ -41,7 +41,7 @@ ROCKET_AUTH_TOKEN = os.environ.get("rocketToken")
 UPLOAD_FOLDER = os.getcwd() + "/tmp"
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'pdf'}
 
 
 def _gen_sid() -> str:
@@ -101,7 +101,7 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         return (str(""), False)
 
 
-def _get_rsme(uid: str):
+def _get_rsme(uid: str) -> bool | None:
     """
     Get the resume_editing variable from the table
     """
@@ -140,7 +140,7 @@ def _validate(vValue, vName : str = "unknown", vType : type = str,
     
     return vValue
 
-def _store_interaction(data: dict, user: str, uid: str, sid: str, 
+def _store_interaction(data: dict, user: str, uid: str, sid: str, files: bool,
                        rsme: bool) -> bool:
     """
     Stores the data payload in DynamoDB instead of local files.
@@ -160,6 +160,7 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str,
             "token": data.get("token", ""),
             "bot": data.get("bot", False),
             "url": data.get("siteUrl", ""),
+            "files": files,
             "rsme": rsme
         }        
         
@@ -170,27 +171,6 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str,
         
     except Exception as e:
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
-        return False   
-
-def put_rsme(uid: str, rsme: bool) -> None:
-    """ 
-    Add the satus of the rsme choice to the dynamo table
-    """
-    try:
-
-        # init user data structure
-        status = {
-            "uid": uid,                                  
-            "rsme": rsme                
-        }        
-        
-        # Store interaction in DynamoDB
-        _TABLE.put_item(Item=status)
-        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
-        return True
-        
-    except Exception as e:
-        _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
         return False   
 
 
@@ -223,6 +203,7 @@ def _upload_page(sid: str, url: str, page: str) -> bool:
         _LOGGER.error(f"Exception raised when uploading page: {url}")  
         return False
 
+
 def _extract_urls(msg: str) -> list:
     """Extract URLs in many different formats from the message."""
     try:
@@ -233,6 +214,7 @@ def _extract_urls(msg: str) -> list:
     except Exception as e:
         _LOGGER.warning(f"An error occurred when extracting urls: {e}")
         return []
+
 
 def _scrape_requests_html(url: str) -> str:
     """
@@ -247,6 +229,7 @@ def _scrape_requests_html(url: str) -> str:
     response.raise_for_status()
     _LOGGER.info(f"{url} scraped with requests-html")
     return response.html.text
+
 
 def _scrape_bs4(url: str) -> str:
     """
@@ -278,6 +261,7 @@ def _scrape_bs4(url: str) -> str:
     _LOGGER.info(f"{url} scraped with BeautifulSoup")
     return soup.get_text()
 
+
 def _robust_scrape(url: str) -> str | None:
     """
     Attempts to scrape using BeautifulSoup first,
@@ -298,6 +282,7 @@ def _robust_scrape(url: str) -> str | None:
     
     return None
 
+
 # used in query to load system prompt
 def safe_load_text(filepath : str) -> dict:
     """Safely read in file contents; return empty string if file not found."""
@@ -310,6 +295,29 @@ def safe_load_text(filepath : str) -> dict:
         _LOGGER.error(f"Could not load text from {filepath}: {e}", exc_info=True)
         return ""
     
+
+def put_rsme(uid: str, rsme: bool) -> bool:
+    """ 
+    Add the satus of the rsme choice to the dynamo table
+    """
+    try:
+
+        # init user data structure
+        status = {
+            "uid": uid,                                  
+            "rsme": rsme                
+        }        
+        
+        # Store interaction in DynamoDB
+        _TABLE.put_item(Item=status)
+        _LOGGER.info(f"Resume path choice (<rsme>) saved for user <{uid}>.")
+        return True
+        
+    except Exception as e:
+        _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
+        return False   
+
+
 def scrape(sid: str, msg: str) -> tuple:
     """
     returns status of if any url scrape failed, and a list of failed urls
@@ -336,6 +344,7 @@ def scrape(sid: str, msg: str) -> tuple:
         _LOGGER
         return (True, True, "An unknown error occurred when accessing sites; try uploading site content as a PDF.")
 
+
 def extract(data) -> tuple:
     """
     Extract user information and store conversation to DynamoDB.
@@ -350,6 +359,7 @@ def extract(data) -> tuple:
     uid  = data.get("user_id", "UnknownUserID")
     user = data.get("user_name", "UnknownUserName")
     msg  = data.get("text", "")
+    files = data["message"].get("files", False)
     
     uid  = _validate(uid, "uid", str, "UnknownUserID", _LOGGER.warning)
     user = _validate(user, "user", str, "UnknownUserName", _LOGGER.warning)
@@ -366,11 +376,12 @@ def extract(data) -> tuple:
     _LOGGER.info(f"<rsme> status: {rsme}")
     
     # Store conversation in DynamoDB
-    _store_interaction(data, user, uid, sid, rsme)
+    _store_interaction(data, user, uid, sid, bool(files), rsme)
 
-    return (user, uid, new, sid, msg, rsme)
+    return (user, uid, new, sid, msg, files, rsme)
 
-def guides(msg: str):
+
+def guides(msg: str) -> str:
     message = (
         "Please provide any salient information on drafting effective resumes related to the following prompt:\n"
         + msg)
@@ -389,9 +400,11 @@ def guides(msg: str):
         _LOGGER.info(f"Guides supplied info: {resp}")
         return json.dumps(resp)
 
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def download_file(file_id, filename):
     """Download file from Rocket.Chat and save locally."""
@@ -414,6 +427,7 @@ def download_file(file_id, filename):
     
     print(f"INFO - some issue with {filename} with {response.status_code} code")
     return None
+
 
 def send_message_with_file(room_id, message, file_path):
     """Send a message with the downloaded file back to the chat."""
@@ -477,8 +491,6 @@ def send_files(data, sid):
         return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
-# Rocket Chat Message Sending
-
 def update_resume_summary(sid, section, content):
     """
     Updates the structured resume summary stored in session data.
@@ -496,6 +508,7 @@ def update_resume_summary(sid, section, content):
     )
 
     return formatted_summary
+
 
 def send_resume_for_review(sid):
     """
