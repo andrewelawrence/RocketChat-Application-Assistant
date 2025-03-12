@@ -80,7 +80,6 @@ def extract(data) -> tuple:
 
     # Fetch the resume status from DynamoDB
     rsme = _get_rsme(uid)
-    _LOGGER.info(f"<rsme> status: {rsme}")
     
     # Store conversation in DynamoDB
     _store_interaction(data, user, uid, sid, bool(files), rsme)
@@ -119,7 +118,7 @@ def guides(msg: str) -> str:
         _LOGGER.info("No guiding info found.")
         return "No extra context retrieved."
     else:
-        _LOGGER.info(f"Guides supplied info: {resp}")
+        _LOGGER.info(f"Guiding info retrieved: {resp}")
         return json.dumps(resp)
 
 
