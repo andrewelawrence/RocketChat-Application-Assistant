@@ -119,10 +119,11 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
         "resume_editing": rsme,
         "date": datetime.now(timezone.utc).isoformat(),
         }
-    query = json.dumps(query, indent=4)
-    _LOGGER.info(f"User query: {query}")
+    _LOGGER.info(f"USER QUERY: {json.dumps(query, separators=(',', ':'))}")
     
-    response = generate(
+    query = json.dumps(query, indent=4)
+
+    resp = generate(
         model=_MODEL,
         system=system,
         query=query,
@@ -134,49 +135,54 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
         session_id=sid,
     )
 
-    _LOGGER.info(f"RESP: {response}")
-    
-    resp = json.loads(response)
-    _LOGGER.info(f"LOADS RESP: {resp}")
-    
-    human_in_the_loop = resp.get("human_in_the_loop", False)
-    _LOGGER.info(f"Human escalation needed: {human_in_the_loop}")
+    _LOGGER.info(f"Response: {resp}")
 
-  # Prepare buttons for user action
-    buttons = [{
-        "type": "button",
-        "text": "📑 Existing resume",
-        "msg": "resume_edit",
-        "msg_in_chat_window": True,
-        "msg_processing_type": "sendMessage"
-    },
-    {
-        "type": "button",
-        "text": "🆕 New resume",
-        "msg": "resume_create",
-        "msg_in_chat_window": True,
-        "msg_processing_type": "sendMessage"
-    }]
+    try:
+        rag = resp.get(['rag_context'])
+        resp = resp.get(['response']) # now resp is exclusively the inner "response"
+        section = resp.get(['section'], "general")
+        sources = resp.get(['sources'], [])
+        incl_human = resp.get(['human_in_the_loop'], False)
+        resp = resp.get(['response'], "Error; notify the team.") # nnw response is exclusively the innermost "response" - the real message
 
-    if human_in_the_loop:
-        _LOGGER.info(f"Suggesting human review for session {sid}.")
-        buttons.append({
+        # Prepare buttons for user action
+        buttons = [{
             "type": "button",
-            "text": "📨 Consult a Resume Expert",
-            "msg": "send_to_specialist",
+            "text": "📑 Existing resume",
+            "msg": "resume_edit",
             "msg_in_chat_window": True,
             "msg_processing_type": "sendMessage"
-        })
+        },
+        {
+            "type": "button",
+            "text": "🆕 New resume",
+            "msg": "resume_create",
+            "msg_in_chat_window": True,
+            "msg_processing_type": "sendMessage"
+        }]
 
+        # If AI thinks a human should be looped in, include that button
+        _LOGGER.info(f"Human escalation: {incl_human}")
+        if incl_human:
+            buttons.append({
+                "type": "button",
+                "text": "📨 Consult a Resume Expert",
+                "msg": "send_to_specialist",
+                "msg_in_chat_window": True,
+                "msg_processing_type": "sendMessage"
+            })
 
-    # Format response with RAG context if available
-    context_summary = f"🔎 **Relevant Context Used:**\n{'\n'.join([f'- {s}' for s in response.get('sources', [])])}" if response.get("sources") else ""
-    final_response = f"{response['response']}\n\n{context_summary}" if context_summary else response['response']
+        # Format response with RAG context if available
+        context_summary = f"🔎 **Sources:**\n{'\n'.join([f'- {s}' for s in sources])}" if sources else ""
+        final_response = f"{resp}\n\n{context_summary}" if context_summary else resp
 
-    return jsonify({
-        "text": final_response,
-        "attachments": [{"title": "Next Steps", "actions": buttons}] if buttons else []
-    })
+        return jsonify({
+            "text": final_response,
+            "attachments": [{"title": "Next Steps", "actions": buttons}] if buttons else []
+            })
+    
+    except:
+        return jsonify({"text": "An error occurred in the response. Please try again. If this continues, please notify the team."})
 
 
 def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl: str) -> dict:
