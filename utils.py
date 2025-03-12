@@ -120,7 +120,7 @@ def _validate(vValue, vName : str = "unknown", vType : type = str,
     
     return vValue
 
-def _store_interaction(data: dict, user: str, uid: str, sid: str) -> bool:
+def _store_interaction(data: dict, user: str, uid: str, sid: str, resume_editing: bool) -> bool:
     """Stores the data payload in DynamoDB instead of local files."""
     
     try:
@@ -137,6 +137,7 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str) -> bool:
             "token": data.get("token", ""),
             "bot": data.get("bot", False),
             "url": data.get("siteUrl", ""),
+            "resume_editing": resume_editing
         }        
         
         # Store interaction in DynamoDB
