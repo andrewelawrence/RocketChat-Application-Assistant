@@ -140,7 +140,7 @@ def query(msg: str, sid: str,
 def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
 
     # Handling resume section updates
-    if msg.lower().startswith("create_") or msg.lower().startswith("edit_"):
+    if msg.lower().startswith(("create_", "edit_")):
         section = msg.split("_")[1]  
         user_input = msg[len(f"{section}_"):]  
 
@@ -151,10 +151,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
         formatted_summary = update_resume_summary(sid, section, user_input)
 
         return jsonify({
-            "text": (
-                "✅ Your resume has been updated!\n\n"
-                "Would you like an expert to review this section?"
-            ),
+            "text": "✅ Your resume has been updated! Would you like an expert to review this section?",
             "attachments": [
                 {
                     "title": "Next Steps",
@@ -162,40 +159,13 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
                         {
                             "type": "button",
                             "text": "📨 Yes, send to an expert",
-                            "msg": "send_to_specialist",
-                            "msg_in_chat_window": True,
-                            "msg_processing_type": "sendMessage"
-                        },
-                        {
-                            "type": "button",
-                            "text": "✏️ Keep editing",
-                            "msg": "continue_editing",
-                            "msg_in_chat_window": True,
-                            "msg_processing_type": "sendMessage"
-                        }
-                    ]
-                }
-            ]
-        })
-
-    # **User Requests Expert Review**
-    elif msg == "send_to_specialist":
-        return jsonify({
-            "text": "Would you like to send this section to an expert for review?",
-            "attachments": [
-                {
-                    "title": "Send for Expert Review",
-                    "actions": [
-                        {
-                            "type": "button",
-                            "text": "✅ Yes, send now",
                             "msg": "confirm_send_to_specialist",
                             "msg_in_chat_window": True,
                             "msg_processing_type": "sendMessage"
                         },
                         {
                             "type": "button",
-                            "text": "❌ No, keep editing",
+                            "text": "✏️ No, I'll keep editing",
                             "msg": "continue_editing",
                             "msg_in_chat_window": True,
                             "msg_processing_type": "sendMessage"
@@ -205,9 +175,9 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
             ]
         })
 
-    # **Confirm Sending to Specialist**
+    # **User Confirms Sending to Specialist (Sends Immediately)**
     elif msg == "confirm_send_to_specialist":
-        send_resume_for_review(sid)  # ✅ Ensure this is properly aligned
+        send_resume_for_review(sid)
         return jsonify({
             "text": "📨 Your resume has been sent to a career specialist for review!"
         })
@@ -224,12 +194,10 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
             "text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"
         })
 
-    # **User Asks for Feedback**
-    elif any(keyword in msg.lower() for keyword in ["does my resume look good?", "can someone else review my resume?", "this looks good"]):
+    # **User Asks for Feedback (Triggers Expert Review Prompt)**
+    elif any(keyword in msg.lower() for keyword in ["is my resume good", "check this", "does this look good", "any feedback"]):
         return jsonify({
-            "text": (
-                "🔎 Your resume section looks great! Would you like an expert to review it?"
-            ),
+            "text": "🔎 Your resume section looks great! Would you like an expert to review it?",
             "attachments": [
                 {
                     "title": "Next Steps",
@@ -237,7 +205,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
                         {
                             "type": "button",
                             "text": "📨 Yes, send to an expert",
-                            "msg": "send_to_specialist",
+                            "msg": "confirm_send_to_specialist",
                             "msg_in_chat_window": True,
                             "msg_processing_type": "sendMessage"
                         },
