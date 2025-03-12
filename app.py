@@ -1,6 +1,6 @@
 # app.py
 
-import os
+import os, json
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
@@ -45,8 +45,9 @@ def main():
         - JSON response indicating ignored bot messages.   
     """    
     # Delineate logs
-    _LOGGER.info(" ")
-    _LOGGER.info(" ")
+    _LOGGER.info("|" * 51)
+    _LOGGER.info("|" * 13 + " NEW INTERACTION STARTED " + "|" * 13)
+    _LOGGER.info("|" * 51)
     
     # Enforce only JSON requests
     if not request.is_json:
@@ -55,11 +56,11 @@ def main():
      
     # Get data and log it
     data = request.get_json() 
-    _LOGGER.info(f"HTTP POST: {data}")
+    _LOGGER.info(f"HTTP POST: {json.dumps(data, separators=(',', ':'))}")
     
     # Extract relevant information plus collect & store user data
     user, uid, new, sid, msg, files, rsme = extract(data)
-    _LOGGER.info(f"USER DATA: user <{user}>, new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}")
+    _LOGGER.info(f"USER DATA: user <{user}>, new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}>")
 
     # Ignore bot messages.
     if bool(data.get("bot")) == True:
