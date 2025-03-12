@@ -250,119 +250,118 @@ def upload(data, sid):
         # _LOGGER.info(f"Files processed and re-sent successfully!")
         return jsonify({"text": "Files processed and re-sent successfully!"})
 
-# -------------------------
-# 🔧 COMMENTED OUT FUNCTIONS FOR TESTING
-# -------------------------
+def update_resume_summary(sid, section, content):
+    """
+    Updates the structured resume summary stored in session data.
+    Keeps track of completed resume sections and content.
+    """
+    if sid not in session:
+        session[sid] = {"resume_summary": {}}
 
-# def update_resume_summary(sid, section, content):
-#     """
-#     Updates the structured resume summary stored in session data.
-#     Keeps track of completed resume sections and content.
-#     """
-#     if sid not in session:
-#         session[sid] = {"resume_summary": {}}
+    # Store the new content for the section
+    session[sid]["resume_summary"][section] = content
 
-#     # Store the new content for the section
-#     session[sid]["resume_summary"][section] = content
+    # 🔍 DEBUG: Log the entire resume after updating
+    _LOGGER.debug(f"Updated resume summary for session {sid}: {session[sid]['resume_summary']}")
 
-#     # 🔍 DEBUG: Log the entire resume after updating
-#     _LOGGER.debug(f"Updated resume summary for session {sid}: {session[sid]['resume_summary']}")
+    # Generate formatted summary
+    formatted_summary = "\n".join(
+        [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
+    )
 
-#     # Generate formatted summary
-#     formatted_summary = "\n".join(
-#         [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
-#     )
-
-#     return formatted_summary
-
-
-# def send_resume_for_review(sid):
-#     """
-#     Sends the full formatted resume summary to a career specialist.
-#     """
-#     # 🔍 DEBUG: Log session data before sending
-#     _LOGGER.debug(f"Session data before sending to expert: {session.get(sid, {})}")
-
-#     summary = session.get(sid, {}).get("resume_summary", {})
-
-#     if not summary:
-#         _LOGGER.warning(f"No resume summary found for session {sid}.")
-#         return {"error": "No resume summary found!"}
-
-#     # 🔥 Properly formatted resume output
-#     formatted_resume = "\n\n".join(
-#         [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
-#     )
-
-#     message_text = (
-#         f"🔎 **Resume Review Request** 🔎\n\n"
-#         f"Here’s the full updated resume for review:\n\n"
-#         f"{formatted_resume}"
-#     )
-    
-#     _LOGGER.info(f"Attempting to send full resume review request. Session: {sid}")
-#     _LOGGER.debug(f"Formatted Message: {message_text}")  # Log the exact message being sent
-
-#     # Fetch Rocket.Chat credentials
-#     rocket_url = os.getenv("rocketUrl")
-#     rocket_user_id = os.getenv("rocketUid")
-#     rocket_token = os.getenv("rocketToken")
-
-#     if not rocket_url or not rocket_user_id or not rocket_token:
-#         _LOGGER.error("Rocket.Chat environment variables are missing.")
-#         return {"error": "Rocket.Chat credentials not found."}
-
-#     # Rocket.Chat API setup
-#     url = f"{rocket_url}/api/v1/chat.postMessage"
-#     headers = {
-#         "Content-Type": "application/json",
-#         "X-Auth-Token": rocket_token,
-#         "X-User-Id": rocket_user_id
-#     }
-#     payload = {
-#         "channel": "@michael.brady631208",  # Make sure this username is correct
-#         "text": message_text,
-#         "attachments": [
-#             {
-#                 "title": "Approve or request changes:",
-#                 "actions": [
-#                     {
-#                         "type": "button",
-#                         "text": "✅ Approve",
-#                         "msg": f"approve_{sid}",
-#                         "msg_in_chat_window": True,
-#                         "msg_processing_type": "sendMessage"
-#                     },
-#                     {
-#                         "type": "button",
-#                         "text": "❌ Request Changes",
-#                         "msg": f"deny_{sid}",
-#                         "msg_in_chat_window": True,
-#                         "msg_processing_type": "sendMessage"
-#                     }
-#                 ]
-#             }
-#         ]
-#     }
-
-#     _LOGGER.debug(f"Rocket.Chat API Payload: {payload}")  # Log the full API request
-
-#     response = requests.post(url, json=payload, headers=headers)
-    
-#     _LOGGER.info(f"Rocket.Chat API Response Code: {response.status_code}")
-    
-#     try:
-#         response_data = response.json()
-#         _LOGGER.debug(f"Rocket.Chat Response: {response_data}")  # Log the full response
-#     except Exception as e:
-#         _LOGGER.error(f"Failed to parse response from Rocket.Chat: {e}")
-#         response_data = {"error": "Invalid response from Rocket.Chat"}
-
-#     return response_data
-
+    return formatted_summary
 
 # -------------------------
-# 🚀 ACTIVE FUNCTION FOR TESTING
+# 🚀 FUNCTION: Send Resume for Review
+# -------------------------
+
+def send_resume_for_review(sid):
+    """
+    Sends the full formatted resume summary to a career specialist.
+    """
+    # 🔍 DEBUG: Log session data before sending
+    _LOGGER.debug(f"Session data before sending to expert: {session.get(sid, {})}")
+
+    # Retrieve the resume summary from session storage
+    summary = session.get(sid, {}).get("resume_summary", {})
+
+    if not summary:
+        _LOGGER.warning(f"No resume summary found for session {sid}.")
+        return {"error": "No resume summary found!"}
+
+    # 🔥 Properly formatted resume output
+    formatted_resume = "\n\n".join(
+        [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
+    )
+
+    message_text = (
+        f"🔎 **Resume Review Request** 🔎\n\n"
+        f"Here’s the full updated resume for review:\n\n"
+        f"{formatted_resume}"
+    )
+    
+    _LOGGER.info(f"Attempting to send full resume review request. Session: {sid}")
+    _LOGGER.debug(f"Formatted Message: {message_text}")  # Log the exact message being sent
+
+    # Fetch Rocket.Chat credentials
+    rocket_url = os.getenv("rocketUrl")
+    rocket_user_id = os.getenv("rocketUid")
+    rocket_token = os.getenv("rocketToken")
+
+    if not rocket_url or not rocket_user_id or not rocket_token:
+        _LOGGER.error("Rocket.Chat environment variables are missing.")
+        return {"error": "Rocket.Chat credentials not found."}
+
+    # Rocket.Chat API setup
+    url = f"{rocket_url}/api/v1/chat.postMessage"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Auth-Token": rocket_token,
+        "X-User-Id": rocket_user_id
+    }
+    payload = {
+        "channel": "@michael.brady631208",  # Make sure this username is correct
+        "text": message_text,
+        "attachments": [
+            {
+                "title": "Approve or request changes:",
+                "actions": [
+                    {
+                        "type": "button",
+                        "text": "✅ Approve",
+                        "msg": f"approve_{sid}",
+                        "msg_in_chat_window": True,
+                        "msg_processing_type": "sendMessage"
+                    },
+                    {
+                        "type": "button",
+                        "text": "❌ Request Changes",
+                        "msg": f"deny_{sid}",
+                        "msg_in_chat_window": True,
+                        "msg_processing_type": "sendMessage"
+                    }
+                ]
+            }
+        ]
+    }
+
+    _LOGGER.debug(f"Rocket.Chat API Payload: {payload}")  # Log the full API request
+
+    response = requests.post(url, json=payload, headers=headers)
+    
+    _LOGGER.info(f"Rocket.Chat API Response Code: {response.status_code}")
+    
+    try:
+        response_data = response.json()
+        _LOGGER.debug(f"Rocket.Chat Response: {response_data}")  # Log the full response
+    except Exception as e:
+        _LOGGER.error(f"Failed to parse response from Rocket.Chat: {e}")
+        response_data = {"error": "Invalid response from Rocket.Chat"}
+
+    return response_data
+
+# -------------------------
+# 🚀 FUNCTION: Test Message to Rocket.Chat
 # -------------------------
 
 def test_send_resume_for_review(sid):
@@ -404,7 +403,6 @@ def test_send_resume_for_review(sid):
         response_data = {"error": "Invalid response from Rocket.Chat"}
 
     return response_data
-
 
 
 def _gen_sid() -> str:
