@@ -170,23 +170,44 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
 
     # **User Requests Expert Review**
     elif msg == "send_to_specialist":
-        send_resume_for_review(sid)
+        return jsonify({
+            "text": "Would you like to send this section to an expert for review?",
+            "attachments": [
+                {
+                    "title": "Send for Expert Review",
+                    "actions": [
+                        {
+                            "type": "button",
+                            "text": "✅ Yes, send now",
+                            "msg": "confirm_send_to_specialist",
+                            "msg_in_chat_window": True,
+                            "msg_processing_type": "sendMessage"
+                        },
+                        {
+                            "type": "button",
+                            "text": "❌ No, keep editing",
+                            "msg": "continue_editing",
+                            "msg_in_chat_window": True,
+                            "msg_processing_type": "sendMessage"
+                        }
+                    ]
+                }
+            ]
+        })
+
+    # **Confirm Sending to Specialist**
+    elif msg == "confirm_send_to_specialist":
+        send_resume_for_review(sid)  # ✅ Ensure this is properly aligned
         return jsonify({
             "text": "📨 Your resume has been sent to a career specialist for review!"
         })
-    
+
     # **Expert Approves Resume**
     elif msg.startswith("approve_"):
         return jsonify({
-        "text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"
+            "text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"
         })
-    
-    # **Expert Denies Resume**
-    elif msg.startswith("deny_"):
-        return jsonify({
-            "text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"
-        })
-    
+
     else:
         return query(msg, sid, has_urls, urls_failed)
 
