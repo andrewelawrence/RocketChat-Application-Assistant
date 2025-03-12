@@ -40,7 +40,7 @@ def respond(data: dict, user: str, uid: str, new: bool, sid: str, msg: str,
         rsme = True
         return _rsme(uid, rsme)
     elif rsme == None:
-        return jsonify({"text": "‼️ Please choose one of the two options above for working on your resume."})
+        return jsonify({"text": "‼️ Please choose one of the two options above before we begin working on your resume."})
 
     return _default(data, user, uid, new, sid, msg, files, rsme)
 
