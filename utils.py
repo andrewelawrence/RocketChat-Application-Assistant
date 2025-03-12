@@ -324,7 +324,7 @@ def send_resume_for_review(sid):
   #  summary = session.get(sid, {}).get("resume_summary", {})
 
     # if not summary:
-        _LOGGER.warning(f"No resume summary found for session {sid}.")
+      # _LOGGER.warning(f"No resume summary found for session {sid}.")
         # return {"error": "No resume summary found!"}
 
     # 🔥 New Fix: Format the entire resume properly
