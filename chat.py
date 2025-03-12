@@ -5,7 +5,7 @@ from flask import jsonify
 from datetime import datetime, timezone
 from config import get_logger
 from llmproxy import generate
-from utils import safe_load_text, update_resume_summary, send_resume_for_review, test_send_resume_for_review
+from utils import safe_load_text, test_send_resume_for_review
  
 
 # Setup logger
