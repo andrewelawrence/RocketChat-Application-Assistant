@@ -7,8 +7,10 @@ from config import get_logger
 from llmproxy import generate
 from utils import safe_load_text, update_resume_summary, send_resume_for_review 
 
-# filespaths, logging, etc.
+# Setup logger
 _LOGGER = get_logger(__name__)
+
+# Model info
 _WELCOME = os.environ.get("welcomePage")
 _SYSTEM = os.environ.get("systemPrompt")
 _MODEL = os.environ.get("model")
@@ -18,8 +20,20 @@ _RAG = os.environ.get("rag")
 _RAG_K = os.environ.get("ragK")
 _RAG_THR = os.environ.get("ragThr")
 
-# welcome page for new users
 def welcome(uid: str, user: str):
+    """
+    Generate and return a welcome message for a new user.
+
+    The welcome text is read from a file defined by the environment variable.
+    The response includes buttons for starting or editing a resume.
+
+    Parameters:
+        uid (str): The unique identifier of the user.
+        username (str): The user's name.
+
+    Returns:
+        A Flask JSON response with the welcome message and action buttons.
+    """
     with open(_WELCOME, "r", encoding="utf-8") as f:
         welcome = f.read()
     
@@ -52,20 +66,27 @@ def welcome(uid: str, user: str):
     return jsonify(response)
 
 
-# main query function
-def query(msg: str, sid: str, 
-          has_urls: bool, urls_failed: list,
-          rsme: bool, gbl_context: str):
-    _LOGGER.info(f"Processing query for session {sid} - Message: {msg}")
+def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl: str):
+    """
+    Process a user's query and generate a response using the language model.
 
+    The function loads the system prompt from a file, constructs a query payload that
+    includes the user's message, guide context, and resume editing flag, then calls the
+    language model to generate a response. It also appends action buttons for further steps.
+
+    Parameters:
+        msg (str): The user's input message.
+        sid (str): The session identifier.
+        has_urls (bool): Flag indicating whether URLs were found in the message.
+        urls_failed (list): List of URLs that failed during scraping/upload.
+        rsme (bool): Flag indicating if resume editing mode is active.
+        gbl (str): Additional context guiding the response.
+
+    Returns:
+        A Flask JSON response with the generated text and action buttons.
     """
-    file uploading handled, providing sources, linking to career center, etc.
+    _LOGGER.info(f"Processing query for session {sid} - Message: {msg}")
     
-    system file def needs to be fleshed out more to be more rigorous and so the
-    AI knows what capabilities it has
-    """
-    
-    # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
         
     # TODO: get this working sometime in the future
@@ -94,7 +115,7 @@ def query(msg: str, sid: str,
 
     query = {
         "msg": msg,
-        "gbl_context": gbl_context,
+        "gbl_context": gbl,
         "resume_editing": rsme,
         "date": datetime.now(timezone.utc).isoformat(),
         }
@@ -116,8 +137,6 @@ def query(msg: str, sid: str,
     _LOGGER.info(f"RESP: {response}")
     
     resp = json.loads(response)
-
-   # Check if human intervention is needed
     human_in_the_loop = resp.get("human_in_the_loop", False)
     _LOGGER.info(f"Human escalation needed: {human_in_the_loop}")
 
@@ -158,9 +177,27 @@ def query(msg: str, sid: str,
     })
 
 
-def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
-            rsme: bool, gbl_context: str) -> dict:
+def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl: str) -> dict:
+    """
+    Route the incoming user message to the appropriate handler based on its content.
 
+    The function handles:
+      - Resume section updates (commands starting with 'create_' or 'edit_').
+      - Requests to consult a resume expert.
+      - Expert approval or rejection commands.
+      - Otherwise, the message is processed as a general query.
+
+    Parameters:
+        user_message (str): The user's input message or command.
+        session_id (str): The session identifier.
+        has_urls (bool): Flag indicating if URLs are present in the message.
+        urls_failed (list): List of URLs that failed to process.
+        resume_editing (bool): Flag indicating if resume editing mode is active.
+        guide_context (str): Additional context or guiding information.
+
+    Returns:
+        A Flask JSON response with the appropriate response text and action buttons.
+    """
     # Handling resume section updates
     if msg.lower().startswith(("create_", "edit_")):
         section = msg.split("_")[1]  
@@ -180,24 +217,16 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
     elif msg == "send_to_specialist":
         _LOGGER.info(f"User {sid} confirmed sending resume to expert.")
         
-        # Actually send the resume for review
         send_resume_for_review(sid)
-
-        return jsonify({
-            "text": "📨 Your resume has been sent to a career specialist for review!"
-        })
+        return jsonify({"text": "📨 Your resume has been sent to a career specialist for review!"})
 
     # **Expert Approves Resume**
     elif msg.startswith("approve_"):
-        return jsonify({
-            "text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"
-        })
+        return jsonify({"text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"})
 
     # **Expert Requests Changes**
     elif msg.startswith("deny_"):
-        return jsonify({
-            "text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"
-        })
+        return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
 
     else:
-        return query(msg, sid, has_urls, urls_failed, rsme, gbl_context)
+        return query(msg, sid, has_urls, urls_failed, rsme, gbl)

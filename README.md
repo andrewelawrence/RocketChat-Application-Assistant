@@ -28,9 +28,6 @@ Prep test script:
 chmod +x test.sh
 ```
 
-## Contribute
-See the [Features](#features) section for areas of development.
-
 ## Test
 In order to avoid tedious redeployment on Koyeb, execute the following to test the service:
 ```bash
