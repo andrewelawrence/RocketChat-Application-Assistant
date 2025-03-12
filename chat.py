@@ -1,8 +1,9 @@
 # chat.py
 # TODO: see query(). 
 
-import os
+import os, json
 from flask import jsonify
+from datetime import datetime, timezone
 from config import get_logger
 from llmproxy import generate
 from utils import safe_load_text, update_resume_summary, send_resume_for_review 
@@ -55,11 +56,11 @@ def welcome(uid: str, user: str):
 
 # main query function
 def query(msg: str, sid: str, 
-          has_urls: bool, urls_failed: list):
+          has_urls: bool, urls_failed: list,
+          resume_editing: bool, gbl_context: str):
     _LOGGER.info(f"Processing query for session {sid} - Message: {msg}")
 
     """
-    TODO: flesh out what we want for capabilities
     file uploading handled, providing sources, linking to career center, etc.
     
     system file def needs to be fleshed out more to be more rigorous and so the
@@ -69,36 +70,41 @@ def query(msg: str, sid: str,
     # load in system from system.txt file
     system = safe_load_text(_SYSTEM)
         
-    # TODO Add context to the system for this specific message:
-    # (ie. did the url uploads work)
+    # TODO: get this working sometime in the future
+    # if has_urls:
+    #     if bool(urls_failed):
+    #         system += (
+    #             """
+    #             \n\n\n
+    #             The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
+    #             Use specific information from these documents when questions are about their contents.
+    #             The following sites the user sent failed to upload their page content to the session: 
+    #             """
+    #             + 
+    #             ", ".join([f"[{url}]({url})" for url in urls_failed])
+    #             + 
+    #             "\nMention the specific urls failed to the user and tell them to consider uploading the pages as PDFs._"
+    #         )  
+    #     else:
+    #         system += (
+    #             """
+    #             \n\n\n
+    #             The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
+    #             Use specific information from these documents when questions are about their contents.
+    #             """
+    #         )
 
-    if has_urls:
-        if bool(urls_failed):
-            system += (
-                """
-                \n\n\n
-                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
-                Use specific information from these documents when questions are about their contents.
-                The following sites the user sent failed to upload their page content to the session: 
-                """
-                + 
-                ", ".join([f"[{url}]({url})" for url in urls_failed])
-                + 
-                "\nMention the specific urls failed to the user and tell them to consider uploading the pages as PDFs._"
-            )  
-        else:
-            system += (
-                """
-                \n\n\n
-                The user message includes urls whose site content has been uploaded to the session and can be used for RAG context. 
-                Use specific information from these documents when questions are about their contents.
-                """
-            )
-
+    query = {
+        "msg": msg,
+        "gbl_context": gbl_context,
+        "resume_editing": resume_editing,
+        "date": datetime.now(timezone.utc).isoformat(),
+        }
+    
     response = generate(
         model=_MODEL,
         system=system,
-        query=msg,
+        query=json.dumps(query, indent=4),
         temperature=_TEMP,
         lastk=_LAST_K,
         rag_usage=_RAG,
@@ -138,7 +144,8 @@ def query(msg: str, sid: str,
 
 
 
-def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
+def respond(msg: str, sid: str, has_urls: bool, urls_failed: list,
+            resume_editing: bool, gbl_context: str):
 
     # Handling resume section updates
     if msg.lower().startswith(("create_", "edit_")):
@@ -179,4 +186,4 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
         })
 
     else:
-        return query(msg, sid, has_urls, urls_failed)
+        return query(msg, sid, has_urls, urls_failed, resume_editing, gbl_context)

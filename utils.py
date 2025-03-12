@@ -340,6 +340,7 @@ def extract(data) -> tuple:
 
     # Fetch the resume status from DynamoDB
     resume_editing = _get_resume_editing(uid)
+    _LOGGER.info(f"resume_editing status: {resume_editing}")
     
     # Store conversation in DynamoDB
     _store_interaction(data, user, uid, sid, resume_editing)
