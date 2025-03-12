@@ -272,28 +272,33 @@ def update_resume_summary(sid, section, content):
 
 def send_resume_for_review(sid):
     """
-    Sends the formatted resume summary to a career specialist.
+    Sends the full formatted resume summary to a career specialist.
     """
+
+    # 🔍 DEBUG: Log session data before sending
+    _LOGGER.debug(f"Session data before sending to expert: {session.get(sid, {})}")
+
     summary = session.get(sid, {}).get("resume_summary", {})
 
     if not summary:
         _LOGGER.warning(f"No resume summary found for session {sid}.")
         return {"error": "No resume summary found!"}
 
-    formatted_summary = "\n".join(
+    # 🔥 New Fix: Format the entire resume properly
+    formatted_resume = "\n\n".join(
         [f"**{sec.capitalize()}**:\n{data}" for sec, data in summary.items()]
     )
 
     message_text = (
         f"🔎 **Resume Review Request** 🔎\n\n"
-        f"Here’s the updated section for review:\n\n"
-        f"{formatted_summary}"
+        f"Here’s the full updated resume for review:\n\n"
+        f"{formatted_resume}"
     )
     
-    _LOGGER.info(f"Attempting to send resume review request. Session: {sid}")
+    _LOGGER.info(f"Attempting to send full resume review request. Session: {sid}")
     _LOGGER.debug(f"Formatted Message: {message_text}")  # Log the exact message being sent
 
-    # Fetch Rocket.Chat credentials correctly
+    # Fetch Rocket.Chat credentials
     rocket_url = os.getenv("rocketUrl")
     rocket_user_id = os.getenv("rocketUid")
     rocket_token = os.getenv("rocketToken")
@@ -349,6 +354,7 @@ def send_resume_for_review(sid):
         response_data = {"error": "Invalid response from Rocket.Chat"}
 
     return response_data
+
 
 def _gen_sid() -> str:
     """
