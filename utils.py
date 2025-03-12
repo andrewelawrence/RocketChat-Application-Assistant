@@ -7,7 +7,7 @@ from urlextract import URLExtract
 from requests_html import HTMLSession
 from bs4 import BeautifulSoup
 from config import get_logger
-from llmproxy import retrieve, pdf_upload, text_upload
+from llmproxy import retrieve, pdf_upload, text_upload, generate
 
 # setup logging
 _LOGGER = get_logger(__name__)
