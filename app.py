@@ -60,7 +60,7 @@ def main():
     
     # Extract relevant information plus collect & store user data
     user, uid, new, sid, msg, files, rsme = extract(data)
-    _LOGGER.info(f"USER DATA: user <{user}>, new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}>")
+    _LOGGER.info(f"User <{user}> data: new <{new}>, uid <{uid}>, sid <{sid}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}>")
 
     # Ignore bot messages.
     if bool(data.get("bot")) == True:
