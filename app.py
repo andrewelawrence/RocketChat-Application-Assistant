@@ -4,7 +4,7 @@ import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
-from utils import extract, scrape, guides, send_files, send_resume_for_review
+from utils import extract, scrape, guides, send_files, send_resume_for_review, put_resume_editing
 from chat import welcome, respond
 
 # setup logging
@@ -48,7 +48,7 @@ def main():
         return jsonify({"status": "ignored"})
 
     # Extract relevant information + collect & store user data
-    user, uid, new, sid, msg = extract(data)
+    user, uid, new, sid, msg, resume_editing = extract(data)
     _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}")
     
     # Handle welcome message for new users
@@ -74,11 +74,13 @@ def main():
     # Handle resume creation and editing commands
     if msg == "resume_create":
         resume_editing = False
+        put_resume_editing(uid, resume_editing)
         return jsonify({"text": "You're now creating a new resume"})
         # TODO: implement it so that that message appears and then the chatbot provides some question to get things started
     
     elif msg == "resume_edit":
         resume_editing = True
+        put_resume_editing(uid, resume_editing)
         return jsonify({"text": "Send me your existing resume as a '.pdf' or '.txt' file to get started!"})
     
     # Default query handling if none of the above matched

@@ -81,6 +81,28 @@ def _get_sid(uid: str, user: str = "UnknownName") -> tuple:
         _LOGGER.error(f"Error accessing DynamoDB for SID: {e}", exc_info=True)
         return (str(""), False)
 
+
+def _get_resume_editing(uid: str) -> bool:
+    """
+    Get the resume_editing variable from the table
+    """
+
+    try:
+        resp = _TABLE.get_item(Key={"uid": uid})
+        if "Item" in resp:
+            resume_editing = resp["Item"]["resume_editing"]
+            _LOGGER.info(f"User <{uid}> has resume_editing: {resume_editing}")
+
+            return bool(resume_editing)
+        else:
+            _LOGGER.info(f"User <uid> has no resume_editing item. Set to default (None)")
+            return None
+
+    except Exception as e:
+        _LOGGER.error(f"Error accessing DynamoDB for SID: {e}", exc_info=True)
+        return None
+
+
 def _validate(vValue, vName : str = "unknown", vType : type = str, 
               vValueDefault = None,
               log_level = _LOGGER.warning):
@@ -125,6 +147,28 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str) -> bool:
     except Exception as e:
         _LOGGER.error(f"Failed to save conversation history to DynamoDB: {e}", exc_info=True)
         return False   
+
+def put_resume_editing(uid: str, resume_editing: bool) -> None:
+    """ 
+    Add the satus of the resume_editing choice to the dynamo table
+    """
+    try:
+
+        # init user data structure
+        status = {
+            "uid": uid,                                  
+            "resume_editing": resume_editing                
+        }        
+        
+        # Store interaction in DynamoDB
+        _TABLE.put_item(Item=status)
+        _LOGGER.info(f"Resume path choice saved for user <{uid}>.")
+        return True
+        
+    except Exception as e:
+        _LOGGER.error(f"Failed to save resume path choice to DynamoDB: {e}", exc_info=True)
+        return False   
+
 
 # Tool to return the webpage based on URL
 # def get_page(url):
@@ -293,8 +337,11 @@ def extract(data) -> tuple:
     # Fetch/create SID from DynamoDB
     sid, new = _get_sid(uid, user)
 
+    # Fetch the resume status from DynamoDB
+    resume_editing = _get_resume_editing(uid)
+    
     # Store conversation in DynamoDB
-    _store_interaction(data, user, uid, sid)
+    _store_interaction(data, user, uid, sid, resume_editing)
 
     return (user, uid, new, sid, msg)
 
