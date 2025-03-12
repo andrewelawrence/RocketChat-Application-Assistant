@@ -123,17 +123,17 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
     _LOGGER.info(f"User Query: {json.dumps(query, separators=(',', ':'))}")    
     query = json.dumps(query, indent=4)
 
-    _LOGGER.info(f"Model info: model {_MODEL}, temp: {_TEMP}, lastK: {_LAST_K}, rag_usage: {_RAG}, rag_k: {_RAG_K}, rag_threshold: {_RAG_THR}, session_id: {sid}")
+    _LOGGER.info(f"Query parameters: model {_MODEL}, temp: {_TEMP}, lastK: {_LAST_K}, rag_usage: {_RAG}, rag_k: {_RAG_K}, rag_threshold: {_RAG_THR}, session_id: {sid}")
     resp = generate(
-        model=_MODEL,
-        system=system,
-        query=query,
-        temperature=_TEMP,
-        lastk=_LAST_K,
-        rag_usage=_RAG,
-        rag_k=_RAG_K,
-        rag_threshold=_RAG_THR,
-        session_id=sid,
+        model=str(_MODEL),
+        system=str(system),
+        query=str(query),
+        temperature=float(_TEMP),
+        lastk=int(_LAST_K),
+        rag_usage=bool(_RAG),
+        rag_k=int(_RAG_K),
+        rag_threshold=float(_RAG_THR),
+        session_id=str(sid),
     )
 
     _LOGGER.info(f"Response: {resp}")
@@ -177,7 +177,7 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
             })
 
         # Format response with RAG context if available
-        context_summary = f"🔎 **Sources:**\n{'\n'.join([f'- {s}' for s in sources])}" if sources else ""
+        context_summary = f"🔎 *Sources:*\n{'\n'.join([f'- {s}' for s in sources])}" if sources else ""
         final_response = f"{resp}\n\n{context_summary}" if context_summary else resp
 
         return jsonify({
@@ -242,4 +242,5 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
         return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
 
     else:
-        return query(msg, sid, has_urls, urls_failed, rsme, gbl)
+        return query(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, 
+                     rsme=rsme, gbl=gbl)
