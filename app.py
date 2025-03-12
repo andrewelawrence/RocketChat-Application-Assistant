@@ -4,7 +4,7 @@ import os
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from config import get_logger
-from utils import extract, scrape, send_files, send_resume_for_review
+from utils import extract, scrape, guides, send_files, send_resume_for_review
 from chat import welcome, respond
 
 # setup logging
@@ -35,21 +35,21 @@ def main():
     
     # Enforce only JSON requests
     if not request.is_json:
-        _LOGGER.warning("[SECURITY] Non-JSON request blocked.")
+        _LOGGER.warning("Non-JSON request blocked.")
         return jsonify({"error": "Invalid content type"}), 400
     
     # Get data and log it
     data = request.get_json() 
     _LOGGER.info(f"HTTP POST: {data}")
     
-    # Extract relevant information + collect & store user data
-    user, uid, new, sid, msg = extract(data)
-    _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}")
-
-    # Ignore bot messages, goes after extract so that we log bot requests.
+    # Ignore bot messages.
     if bool(data.get("bot")) == True:
         _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
+
+    # Extract relevant information + collect & store user data
+    user, uid, new, sid, msg = extract(data)
+    _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}")
     
     # Handle welcome message for new users
     if new:
@@ -58,7 +58,7 @@ def main():
         return welcome(uid, user)
     
     # Handle file uploads
-    elif "message" in data and "files" in data["message"]:
+    if "message" in data and "files" in data["message"]:
         _LOGGER.info(f"Detected file upload from {user}. Files: {data['message']['files']}")
         file_success = send_files(data, sid)
         _LOGGER.info(f"File upload status: {file_success}")
@@ -90,8 +90,12 @@ def main():
         
         if resume_editing == None:
             return jsonify({"text": "Please select one of the two options for working on your resume."})
-        
-        return respond(msg, sid, has_urls, urls_failed)
+
+        gbl_context = guides(msg)        
+
+        return respond(msg=msg, sid=sid, has_urls=has_urls, 
+                       urls_failed=urls_failed, gbl_context=gbl_context, 
+                       resume_editing=resume_editing)
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
