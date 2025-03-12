@@ -225,7 +225,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list):
         })
 
     # **User Asks for Feedback**
-    elif any(keyword in msg.lower() for keyword in ["is my resume good", "check this", "does this look good", "any feedback"]):
+    elif any(keyword in msg.lower() for keyword in ["does my resume look good?", "can someone else review my resume?", "this looks good"]):
         return jsonify({
             "text": (
                 "🔎 Your resume section looks great! Would you like an expert to review it?"
