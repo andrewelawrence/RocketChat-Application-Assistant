@@ -5,7 +5,7 @@ from flask import jsonify
 from datetime import datetime, timezone
 from config import get_logger
 from llmproxy import generate
-from utils import safe_load_text, test_send_resume_for_review
+from utils import safe_load_text, update_resume_summary, send_resume_for_review
  
 
 # Setup logger
@@ -232,10 +232,10 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
         _LOGGER.info(f"User {sid} confirmed sending resume to expert.")
 
         # Call the test function for now
-        test_send_resume_for_review(sid)
+        # test_send_resume_for_review(sid)
         
         # Uncomment this when you want to use the full resume send function
-        # send_resume_for_review(sid)
+        send_resume_for_review(sid)
 
         return jsonify({"text": "📨 Your resume has been sent to a career specialist for review!"})
 
