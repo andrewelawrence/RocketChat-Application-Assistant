@@ -256,18 +256,23 @@ def update_resume_summary(sid, section, content):
     Updates the structured resume summary stored in session data.
     Keeps track of completed resume sections and content.
     """
+
     if sid not in session:
         session[sid] = {"resume_summary": {}}
 
     # Store the new content for the section
     session[sid]["resume_summary"][section] = content
 
-    # Generate formatted summary to send later
+    # 🔍 DEBUG: Log the entire resume after updating
+    _LOGGER.debug(f"Updated resume summary for session {sid}: {session[sid]['resume_summary']}")
+
+    # Generate formatted summary
     formatted_summary = "\n".join(
         [f"**{sec.capitalize()}**:\n{data}" for sec, data in session[sid]["resume_summary"].items()]
     )
 
     return formatted_summary
+
 
 
 def send_resume_for_review(sid):
