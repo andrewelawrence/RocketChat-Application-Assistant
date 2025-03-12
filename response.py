@@ -41,8 +41,10 @@ def respond(data: dict, user: str, uid: str, new: bool, sid: str, msg: str,
         return _rsme(uid, rsme)
     elif rsme == None:
         return jsonify({"text": "‼️ Please choose one of the two options above before we begin working on your resume."})
-
+    elif not msg: # ignore empty messages
+        return jsonify({"status": "ignored"})
     return _default(data, user, uid, new, sid, msg, files, rsme)
+
 
 def _files_attached(data: dict) -> bool:
     """
@@ -133,7 +135,6 @@ def _default(data: dict, user: str, uid: str, new: bool, sid: str, msg: str,
     
     # TODO: confirm working status
     gbl = guides(msg)  
-    _LOGGER.info(f"Guiding info retrieved: {gbl}")      
 
     return chatRespond(msg=msg, sid=sid, has_urls=has_urls, 
                        urls_failed=urls_failed, gbl=gbl, rsme=rsme)
