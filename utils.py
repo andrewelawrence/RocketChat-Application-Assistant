@@ -23,19 +23,19 @@ _BOTO3_SESSION = boto3.Session(
 )
 _S3_BUCKET = _BOTO3_SESSION.client("s3")
 _DYNAMO_DB = _BOTO3_SESSION.resource("dynamodb")
-_TABLE = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
+_TABLE     = _DYNAMO_DB.Table(os.environ.get("dynamoTable"))
 
 # Global settings for guiding retrieval
 _GUIDES_SID = os.environ.get("guidesSid")
-_RAG_THR = os.environ.get("ragThr")
-_RAG_K = os.environ.get("ragK")
+_RAG_THR    = os.environ.get("ragThr")
+_RAG_K      = os.environ.get("ragK")
 
 # Regular expression to validate UIDs (alphanumeric only)
 _UID_RE = re.compile(r'^[A-Za-z0-9]+$')
 
 # Rocket.Chat configuration for file uploads and messaging
-_ROCKET_URL = os.environ.get("rocketUrl")
-_ROCKET_UID = os.environ.get("rocketUid")
+_ROCKET_URL   = os.environ.get("rocketUrl")
+_ROCKET_UID   = os.environ.get("rocketUid")
 _ROCKET_TOKEN = os.environ.get("rocketToken")
 
 # Temporary file upload folder and allowed file extensions
@@ -211,7 +211,6 @@ def upload(data, sid):
     
     # A file is sent by the user
     if ("message" in data) and ('file' in data['message']):
-        _LOGGER.info(f"INFO - detected file by {user}.")
         saved_files = []
 
         for file_info in data["message"]["files"]:
@@ -231,8 +230,8 @@ def upload(data, sid):
                     path = file_path,
                     session_id = sid,
                     strategy = 'smart')
-                _LOGGER.info(f"Resp from RAG upload: {response}\n")
-                sleep(10) # so that documents are uploaded to RAG session
+                _LOGGER.info(f"Response from RAG upload: {response}\n")
+                sleep(10) # so that documents have time to load
 
             else:
                 _LOGGER.info(f"Failed to download file")
@@ -246,7 +245,7 @@ def upload(data, sid):
         #     _send_message_with_file(room_id, message_text, saved_file)
         #     _LOGGER.info(f"Sending message with {saved_file}\n")
 
-        _LOGGER.info(f"Files processed and re-sent successfully!")
+        # _LOGGER.info(f"Files processed and re-sent successfully!")
         return jsonify({"text": "Files processed and re-sent successfully!"})
 
 
