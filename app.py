@@ -49,7 +49,7 @@ def main():
 
     # Extract relevant information + collect & store user data
     user, uid, new, sid, msg, resume_editing = extract(data)
-    _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}")
+    _LOGGER.info(f"EXTR DATA: User: {user}, New User: {new}, User ID: {uid}, Session ID: {sid}, Message: {msg}, Resume Editing: {resume_editing}")
     
     # Handle welcome message for new users
     if new:
@@ -67,17 +67,12 @@ def main():
         else:
             return jsonify({"text": "⚠️ An issue was encountered saving the file. Please try again."})
     
-    # Toggles between the conversation style: i.e. is the user creating a new 
-    # resume or editing an existing one
-    resume_editing = None # False = creating a new one, True = editing a prev one.
-
     # Handle resume creation and editing commands
     if msg == "resume_create":
         resume_editing = False
         put_resume_editing(uid, resume_editing)
         return jsonify({"text": "You're now creating a new resume"})
         # TODO: implement it so that that message appears and then the chatbot provides some question to get things started
-    
     elif msg == "resume_edit":
         resume_editing = True
         put_resume_editing(uid, resume_editing)
@@ -95,9 +90,8 @@ def main():
 
         gbl_context = guides(msg)        
 
-        return respond(msg=msg, sid=sid, has_urls=has_urls, 
-                       urls_failed=urls_failed, gbl_context=gbl_context, 
-                       resume_editing=resume_editing)
+        return respond(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, 
+                       gbl_context=gbl_context, resume_editing=resume_editing)
 
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
