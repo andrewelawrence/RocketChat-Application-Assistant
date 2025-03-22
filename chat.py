@@ -249,13 +249,49 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
 
         return jsonify({"text": "📨 Your resume has been sent to a career specialist for review!"})
 
-    # **Expert Approves Resume**
-    elif msg.startswith("approve_"):
-        return jsonify({"text": "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"})
 
-    # **Expert Requests Changes**
-    elif msg.startswith("deny_"):
-        return jsonify({"text": "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"})
+     # 🚨 Expert Response (Approve/Deny)
+    elif msg.startswith("approve_") or msg.startswith("deny_"):
+        action = "approved" if msg.startswith("approve_") else "requested changes"
+        sid = msg.split("_")[1]
+
+        # Retrieve original user channel
+        user_channel = session.get(sid, {}).get("channel_id", None)
+
+        if not user_channel:
+            _LOGGER.warning(f"No user channel found for session {sid}")
+            return jsonify({"text": f"The resume has been {action} by the expert, but we could not notify the user."})
+
+        # Prepare message for user
+        user_message = (
+            "🎉 Your resume has been approved by the career specialist! You’re all set! ✅"
+            if action == "approved" else
+            "🔄 The career specialist has requested some changes. Let's go back and refine your resume together!"
+        )
+
+        # Send message to user channel via Rocket.Chat API
+        try:
+            rocket_url = os.getenv("rocketUrl")
+            rocket_user_id = os.getenv("rocketUid")
+            rocket_token = os.getenv("rocketToken")
+
+            url = f"{rocket_url}/api/v1/chat.postMessage"
+            headers = {
+                "Content-Type": "application/json",
+                "X-Auth-Token": rocket_token,
+                "X-User-Id": rocket_user_id
+            }
+            payload = {
+                "channel": f"@{user_channel}",
+                "text": user_message
+            }
+            response = requests.post(url, json=payload, headers=headers)
+            _LOGGER.info(f"Sent expert response to user channel {user_channel} with code {response.status_code}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to send expert response to user: {e}", exc_info=True)
+
+        return jsonify({"text": f"✅ Expert decision ({action}) delivered to user channel @{user_channel}."})
+
 
     else:
         return query(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, 
