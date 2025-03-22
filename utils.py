@@ -281,7 +281,40 @@ def send_resume_for_review(sid):
     """
     _LOGGER.info(f"Sending resume review request for session {sid}")
 
-    message_text = "📨 A resume review request has been submitted. Please review and take action below."
+
+    # Step 1: Get chat history
+    chat_log = session.get(sid, {}).get("chat_log", [])
+    if not chat_log:
+        _LOGGER.warning(f"No chat log found for session {sid}; sending generic message.")
+        summary_text = "No detailed summary available. Please review the resume edits manually."
+    else:
+        # Step 2: Format into a prompt
+        prompt = "Summarize the following edits and conversation about the user's resume as a bullet-point list. Be concise and highlight changes discussed.\n\n"
+        for pair in chat_log:
+            role = pair["role"]
+            msg = pair["msg"]
+            prompt += f"{role.capitalize()}: {msg}\n"
+
+        # Step 3: Generate AI summary
+        try:
+            resp = generate(
+                model="gpt-4",
+                system="You are a helpful assistant summarizing a resume editing session.",
+                query=json.dumps({"msg": prompt}),
+                temperature=0.7,
+                lastk=10,
+                rag_usage=False,
+                rag_k=0,
+                rag_threshold=0.0,
+                session_id=sid,
+            )
+            summary_text = resp.get("response", "Summary unavailable.")
+        except Exception as e:
+            _LOGGER.error(f"AI summary generation failed: {e}", exc_info=True)
+            summary_text = "AI summary generation failed. Please review the chat manually."
+
+    # Step 4: Final message sent to expert
+    message_text = f"📨 A resume review request has been submitted. Please review and take action below.\n\n*Summary of Edits:*\n{summary_text}"
 
     # Rocket.Chat API setup
     rocket_url = os.getenv("rocketUrl")
