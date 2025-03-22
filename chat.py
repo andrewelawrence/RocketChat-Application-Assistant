@@ -149,7 +149,17 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
         resp = resp.get('response', "An error occurred; notify the team.") 
             # now response is exclusively the innermost "response" - the real message
         _LOGGER.info(f"Response Parsed: rag: {rag}, resp: {resp}, section: {section}, sources: {sources}, human_in_the_loop: {incl_human}")
-        
+
+        # 🧠 Store chat history in session for AI summary later
+        if sid not in session:
+            session[sid] = {}
+
+        if "chat_log" not in session[sid]:
+            session[sid]["chat_log"] = []
+
+        session[sid]["chat_log"].append({"role": "user", "msg": msg})
+        session[sid]["chat_log"].append({"role": "bot", "msg": resp})
+     
         # Prepare buttons for user action
         buttons = [{
             "type": "button",
