@@ -12,6 +12,7 @@ _LOGGER = get_logger(__name__)
 
 # Creates a Flask app instance so Flask can locate resources. 
 app = Flask(__name__)
+app.secret_key = os.environ.get("flaskSecret")
 
 # Check for dev state. Will raise an error if in Koyeb environment.
 try:
