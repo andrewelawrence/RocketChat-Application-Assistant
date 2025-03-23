@@ -1,7 +1,7 @@
 # chat.py
 
 import os, json
-from flask import jsonify
+from flask import jsonify, session
 from datetime import datetime, timezone
 from config import get_logger
 from llmproxy import generate
