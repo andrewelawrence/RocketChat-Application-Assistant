@@ -206,7 +206,7 @@ def query(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl
         return jsonify({"text": "An error occurred in the response. Please try again. If this continues, please notify the team."})
 
 
-def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl: str) -> dict:
+def respond(msg: str, sid: str, uid: str, has_urls: bool, urls_failed: list, rsme: bool, gbl: str) -> dict:
     """
     Route the incoming user message to the appropriate handler based on its content.
 
@@ -250,7 +250,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
         # test_send_resume_for_review(sid, uid)
         
         # Uncomment this when you want to use the full resume send function
-        send_resume_for_review(sid)
+        send_resume_for_review(sid, uid)
 
         return jsonify({"text": "📨 Your resume has been sent to a career specialist for review!"})
 
