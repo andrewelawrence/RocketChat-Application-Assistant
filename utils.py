@@ -281,6 +281,8 @@ def send_resume_for_review(sid):
     """
     _LOGGER.info(f"Sending resume review request for session {sid}")
 
+    _LOGGER.debug(f"[REVIEW] Session keys: {list(session.keys())}")
+    _LOGGER.debug(f"[REVIEW] Session[{sid}]: {session.get(sid, {})}")
 
     # Step 1: Get chat history
     chat_log = session.get(sid, {}).get("chat_log", [])
