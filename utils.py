@@ -278,55 +278,62 @@ def update_resume_summary(sid, section, content):
 def send_resume_for_review(sid):
     """
     Sends a basic review request message with approve/deny buttons.
+    Falls back to DynamoDB if chat_log not in session memory.
     """
     _LOGGER.info(f"Sending resume review request for session {sid}")
-
     _LOGGER.debug(f"[REVIEW] Session keys: {list(session.keys())}")
     _LOGGER.debug(f"[REVIEW] Session[{sid}]: {session.get(sid, {})}")
 
-    # Step 1: Get chat history
+    # Step 1: Try to get chat history from memory
     chat_log = session.get(sid, {}).get("chat_log", [])
+
+    # Step 2: Fallback to DynamoDB if needed
     if not chat_log:
-        _LOGGER.warning(f"No chat log found for session {sid}; sending generic message.")
+        _LOGGER.warning(f"No in-memory chat log found for session {sid}. Trying DynamoDB...")
+        try:
+            response = _TABLE.get_item(Key={"sid": sid})
+            chat_log = response.get("Item", {}).get("chat_log", [])
+            _LOGGER.info(f"Fallback chat_log loaded from DynamoDB. Entries: {len(chat_log)}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to retrieve chat_log from DynamoDB: {e}")
+            chat_log = []
+
+    # Step 3: Build prompt or fallback message
+    if not chat_log:
         summary_text = "No detailed summary available. Please review the resume edits manually."
     else:
-    # Step 2: Build a better prompt from chat log
         prompt = (
-           "You are a helpful assistant summarizing a resume editing session between a user and a bot.\n"
-           "Return a bullet-point summary of the changes and suggestions discussed, clearly labeled as 'Summary of Edits:'\n\n"
+            "You are a helpful assistant summarizing a resume editing session between a user and a bot.\n"
+            "Return a bullet-point summary of the changes and suggestions discussed, clearly labeled as 'Summary of Edits:'\n\n"
         )
-   
         for pair in chat_log:
-           role = pair["role"]
-           msg = pair["msg"]
-           prompt += f"{role.capitalize()}: {msg}\n"
-   
-      # Step 3: Call LLM to summarize
-        try:
-           summary_response = generate(
-               model="4o-mini",
-               system="Summarize this resume editing session.",
-               query=json.dumps({"msg": prompt}),
-               temperature=0.3,
-               lastk=8,
-               rag_usage=False,
-               rag_k=0,
-               rag_threshold=0.0,
-               session_id=sid
-           )
-   
-           summary_text = summary_response.get("response", "").strip()
-           if not summary_text:
-               summary_text = "Summary unavailable. Please review the edits manually."
-   
-        except Exception as e:
-           _LOGGER.error(f"Error during resume summary generation: {e}", exc_info=True)
-           summary_text = "Summary unavailable. Please review the edits manually."
+            role = pair.get("role", "unknown")
+            msg = pair.get("msg", "")
+            prompt += f"{role.capitalize()}: {msg}\n"
 
-    # Step 4: Final message sent to expert
+        # Step 4: Call LLM to summarize
+        try:
+            summary_response = generate(
+                model="4o-mini",
+                system="Summarize this resume editing session.",
+                query=json.dumps({"msg": prompt}),
+                temperature=0.3,
+                lastk=8,
+                rag_usage=False,
+                rag_k=0,
+                rag_threshold=0.0,
+                session_id=sid
+            )
+            summary_text = summary_response.get("response", "").strip()
+            if not summary_text:
+                summary_text = "Summary unavailable. Please review the edits manually."
+        except Exception as e:
+            _LOGGER.error(f"Error during resume summary generation: {e}", exc_info=True)
+            summary_text = "Summary unavailable. Please review the edits manually."
+
+    # Step 5: Send message to specialist on Rocket.Chat
     message_text = f"📨 A resume review request has been submitted. Please review and take action below.\n\n*Summary of Edits:*\n{summary_text}"
 
-    # Rocket.Chat API setup
     rocket_url = os.getenv("rocketUrl")
     rocket_user_id = os.getenv("rocketUid")
     rocket_token = os.getenv("rocketToken")
@@ -342,7 +349,7 @@ def send_resume_for_review(sid):
         "X-User-Id": rocket_user_id
     }
     payload = {
-        "channel": "@michael.brady631208",  # Update if needed
+        "channel": "@michael.brady631208",
         "text": message_text,
         "attachments": [
             {
@@ -371,12 +378,10 @@ def send_resume_for_review(sid):
     _LOGGER.info(f"Rocket.Chat API Response Code: {response.status_code}")
 
     try:
-        response_data = response.json()
-        return response_data
+        return response.json()
     except Exception as e:
         _LOGGER.error(f"Failed to parse response from Rocket.Chat: {e}")
         return {"error": "Invalid response from Rocket.Chat"}
-
 # -------------------------
 # 🚀 FUNCTION: Test Message to Rocket.Chat
 # -------------------------
@@ -587,7 +592,12 @@ def _store_interaction(data: dict, user: str, uid: str, sid: str, files: bool,
             "files": files,
             "rsme": rsme
         }        
-        
+
+        # ✅ Store chat_log if it exists
+        chat_log = session.get(sid, {}).get("chat_log", [])
+        if chat_log:
+           interaction["chat_log"] = chat_log
+       
         # Store interaction in DynamoDB
         _TABLE.put_item(Item=interaction)
         _LOGGER.info(f"Conversation history saved for user <{uid}> at {timestamp}")
