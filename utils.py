@@ -275,7 +275,7 @@ def update_resume_summary(sid, section, content):
 # 🚀 FUNCTION: Send Resume for Review
 # -------------------------
 
-def send_resume_for_review(sid):
+def send_resume_for_review(sid, uid):
     """
     Sends a basic review request message with approve/deny buttons.
     Falls back to DynamoDB if chat_log not in session memory.
@@ -291,7 +291,7 @@ def send_resume_for_review(sid):
     if not chat_log:
         _LOGGER.warning(f"No in-memory chat log found for session {sid}. Trying DynamoDB...")
         try:
-            response = _TABLE.get_item(Key={"sid": sid})
+            response = _TABLE.get_item(Key={"uid": uid})  # ✅ fixed
             chat_log = response.get("Item", {}).get("chat_log", [])
             _LOGGER.info(f"Fallback chat_log loaded from DynamoDB. Entries: {len(chat_log)}")
         except Exception as e:
