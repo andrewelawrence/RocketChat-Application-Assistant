@@ -70,8 +70,16 @@ def main():
     if bool(data.get("bot")) == True:
         _LOGGER.info("Bot message detected; message ignored.")
         return jsonify({"status": "ignored"})
-    else:
-        return respond(data, user, uid, new, sid, msg, files, rsme)
+    
+    # ✅ Scrape any URLs and get guiding context before responding
+    from utils import guides, scrape
+    has_urls, failed, urls_failed = scrape(sid, msg)
+    gbl = guides(msg)
+
+    return respond(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, rsme=rsme, gbl=gbl)
+    
+#    else:
+#        return respond(data, user, uid, new, sid, msg, files, rsme)
     
 # Dev route; displays a basic prompt/response page that uses /query
 @app.route('/dev')
