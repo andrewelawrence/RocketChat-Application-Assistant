@@ -62,6 +62,9 @@ def main():
     # Extract relevant information plus collect & store user data
     user, uid, new, sid, msg, files, rsme = extract(data)
     _LOGGER.info(f"User <{user}>: uid <{uid}>, sid <{sid}>, new <{new}>, msg <{msg}>, rmse <{rsme}>, files <{bool(files)}>")
+    
+    session[sid] = session.get(sid, {})
+    session[sid]["user_name"] = user
 
     # Ignore bot messages.
     if bool(data.get("bot")) == True:
