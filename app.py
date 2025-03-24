@@ -76,7 +76,7 @@ def main():
     has_urls, failed, urls_failed = scrape(sid, msg)
     gbl = guides(msg)
 
-    return respond(msg=msg, sid=sid, has_urls=has_urls, urls_failed=urls_failed, rsme=rsme, gbl=gbl)
+    return respond(msg=msg, sid=sid, uid=uid, has_urls=has_urls, urls_failed=urls_failed, rsme=rsme, gbl=gbl)
     
 #    else:
 #        return respond(data, user, uid, new, sid, msg, files, rsme)
