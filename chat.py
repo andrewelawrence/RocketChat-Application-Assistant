@@ -1,6 +1,7 @@
 # chat.py
 
 import os, json
+import requests
 from flask import jsonify, session
 from datetime import datetime, timezone
 from config import get_logger
