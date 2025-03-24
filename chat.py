@@ -256,7 +256,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
         sid = msg.split("_")[1]
 
         # Retrieve original user channel
-        user_channel = session.get(sid, {}).get("channel_id", None)
+        user_channel = session.get(sid, {}).get("user_name", None)
 
         if not user_channel:
             _LOGGER.warning(f"No user channel found for session {sid}")
@@ -282,7 +282,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
                 "X-User-Id": rocket_user_id
             }
             payload = {
-                "channel": f"@{user_name}",
+                "channel": f"@{user_channel}",
                 "text": user_message
             }
             response = requests.post(url, json=payload, headers=headers)
