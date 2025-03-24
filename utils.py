@@ -288,30 +288,38 @@ def send_resume_for_review(sid):
         _LOGGER.warning(f"No chat log found for session {sid}; sending generic message.")
         summary_text = "No detailed summary available. Please review the resume edits manually."
     else:
-        # Step 2: Format into a prompt
-        prompt = "Summarize the following edits and conversation about the user's resume as a bullet-point list. Be concise and highlight changes discussed.\n\n"
+    # Step 2: Build a better prompt from chat log
+        prompt = (
+           "You are a helpful assistant summarizing a resume editing session between a user and a bot.\n"
+           "Return a bullet-point summary of the changes and suggestions discussed, clearly labeled as 'Summary of Edits:'\n\n"
+        )
+   
         for pair in chat_log:
-            role = pair["role"]
-            msg = pair["msg"]
-            prompt += f"{role.capitalize()}: {msg}\n"
-
-        # Step 3: Generate AI summary
+           role = pair["role"]
+           msg = pair["msg"]
+           prompt += f"{role.capitalize()}: {msg}\n"
+   
+      # Step 3: Call LLM to summarize
         try:
-            resp = generate(
-                model="gpt-4",
-                system="You are a helpful assistant summarizing a resume editing session.",
-                query=json.dumps({"msg": prompt}),
-                temperature=0.7,
-                lastk=10,
-                rag_usage=False,
-                rag_k=0,
-                rag_threshold=0.0,
-                session_id=sid,
-            )
-            summary_text = resp.get("response", "Summary unavailable.")
+           summary_response = generate(
+               model="4o-mini",
+               system="Summarize this resume editing session.",
+               query=json.dumps({"msg": prompt}),
+               temperature=0.3,
+               lastk=8,
+               rag_usage=False,
+               rag_k=0,
+               rag_threshold=0.0,
+               session_id=sid
+           )
+   
+           summary_text = summary_response.get("response", "").strip()
+           if not summary_text:
+               summary_text = "Summary unavailable. Please review the edits manually."
+   
         except Exception as e:
-            _LOGGER.error(f"AI summary generation failed: {e}", exc_info=True)
-            summary_text = "AI summary generation failed. Please review the chat manually."
+           _LOGGER.error(f"Error during resume summary generation: {e}", exc_info=True)
+           summary_text = "Summary unavailable. Please review the edits manually."
 
     # Step 4: Final message sent to expert
     message_text = f"📨 A resume review request has been submitted. Please review and take action below.\n\n*Summary of Edits:*\n{summary_text}"
