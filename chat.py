@@ -247,7 +247,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
         _LOGGER.info(f"User {sid} confirmed sending resume to expert.")
 
         # Call the test function for now
-        # test_send_resume_for_review(sid)
+        # test_send_resume_for_review(sid, uid)
         
         # Uncomment this when you want to use the full resume send function
         send_resume_for_review(sid)
