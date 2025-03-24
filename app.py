@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from config import get_logger
 from utils import extract
-from response import respond
+from chat import respond
 
 # Setup logging
 _LOGGER = get_logger(__name__)
