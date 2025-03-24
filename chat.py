@@ -282,7 +282,7 @@ def respond(msg: str, sid: str, has_urls: bool, urls_failed: list, rsme: bool, g
                 "X-User-Id": rocket_user_id
             }
             payload = {
-                "channel": f"@{user_channel}",
+                "channel": f"@{user_name}",
                 "text": user_message
             }
             response = requests.post(url, json=payload, headers=headers)
