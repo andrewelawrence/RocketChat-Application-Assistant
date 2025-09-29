@@ -1,56 +1,39 @@
-# Koyeb-mini-1
-[![Rocket.Chat](https://img.shields.io/badge/Rocket.Chat-rocketdotchat?logo=rocketdotchat&logoSize=auto&labelColor=white&color=white)](https://docs.rocket.chat/docs/rocketchat)
-[![Koyeb](https://img.shields.io/badge/Koyeb-Koyeb?logo=Koyeb&logoColor=white&logoSize=auto&labelColor=black&color=black
-)](https://www.koyeb.com/docs/build-and-deploy/cli/reference)
-[![Flask](https://img.shields.io/badge/Flask-flask?logo=flask&logoColor=black&logoSize=auto&labelColor=white&color=blue)](https://flask.palletsprojects.com/en/stable/)
-[![LLMProxy](https://img.shields.io/badge/LLMProxy-LLMProxy?logo=github&logoColor=white&labelColor=black&color=lightgray)](https://github.com/Tufts-University/LLMProxy)
-[![Python](https://img.shields.io/badge/python-3.12.8-blue.svg)](https://www.python.org/downloads/)
+# Rocket.Chat Job Application LLM Assistant Gateway via Koyeb
 
-Koyeb-mini-1 hosts a job application AI assistant via the Tufts University LLMProxy module. The chatbot is hosted on [Koyeb](https://www.koyeb.com/) and served to the CS 0150 [Rocket.chat](https://chat.genaiconnect.net/group/CS150) platform.
+RocketChat-Application-Assistant hosts a job application AI assistant deployed to Koyeb that connects Rocket.Chat to an early, non-distributed version of LLMProxy used in the paper [LLMProxy: Reducing Cost to Access Large Language Models](https://arxiv.org/pdf/2410.11857). Originally used to test out hosting chatbots on Rocket.Chat and has since been abandoned.
 
 ## First-time setup
 Clone repository:
 ```bash
-git clone https://github.com/andrewelawrence/Koyeb-mini-1
-cd Koyeb-mini-1
-```
-Install packages (consider using a python venv):
-```bash
+git clone https://github.com/andrewelawrence/RocketChat-Application-Assistant
+cd RocketChat-Application-Assistant
+
 pip install -r requirements.txt
-```
-Install Koyeb CLI (optional):
-```bash
+
 sudo apt install koyeb
 koyeb login
+
+# redeploy example (replace with your service name)
+koyeb service redeploy <your-org>/<your-service-name>
 ```
-Prep test script:
+
+## Testing
+With environment set (see `config/.env`), you can run:
 ```bash
 chmod +x test.sh
-```
-
-## Test
-In order to avoid tedious redeployment on Koyeb, execute the following to test the service:
-```bash
 ./test.sh
 ```
-This will create a locally hosted flask web-app that runs the chatbot without Koyeb and automatically reloads content on refresh. (Default address is [127.0.0.1:5000](127.0.0.1:5000), visit `config\.env` to change this.)
+This loads env vars and starts the Flask web-app locally. If `flaskEnv=dev` and `flaskPage` are set, a simple dev page is available at `/dev` (default address is [127.0.0.1:5000](127.0.0.1:5000), visit `config\.env` to change this.); otherwise, POST to `/query`.
 
-## Deploy
-This repository is currently deployed as `BOT-Andrew` on [Rocket.chat](https://chat.genaiconnect.net/group/CS150). If you'd like to deploy it on your own Koyeb instance:
-```bash
-koyeb deploy -h
-```
-Or if it's already deployed:
-```bash
-koyeb service redeploy <service-name>
-```
-Make sure you have updated your Koyeb Secrets!
+## Project structure
+- `app.py`: Flask app, routes (`/query`, `/dev`, `/`)
+- `chat.py`: Welcome text and LLM response assembly
+- `response.py`: Dispatcher for uploads, resume mode, and general queries
+- `llmproxy.py`: Early LLMProxy client
+- `utils.py`: AWS DynamoDB session/persistence, Rocket.Chat file handling, helpers
+- `config/load_envs.py`: Loads `config/.env` and runs a target script
+- `upload.py`: CLI to upload PDFs to the shared RAG session
+- `requirements.txt`, `Procfile`, `test.sh`
 
-## Architecture
-- **Front-end:** Rocket.Chat
-- **Hosting:** Koyeb  
-- **Database:** AWS DynamoDB
-- **Core Packages:**  
-  - **LLMProxy:** AI Chatbot  
-  - **boto3:** AWS integration
-  - **Flask:** Web-app structure & testing  
+## Acknowledgements
+- Early LLMProxy implementation used here is from the paper: [LLMProxy: Reducing Cost to Access Large Language Models](https://arxiv.org/pdf/2410.11857).
