@@ -1,9 +1,6 @@
 *.pyc
 logs/app.log
-logs\app.log
 config/.env
-config\.env
 /logs
 /config
-config/.env
 /uploads
