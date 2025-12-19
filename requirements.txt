@@ -13,4 +13,4 @@ Requests==2.32.3
 requests_html==0.10.0
 urlextract==1.9.0
 uritools==4.0.3 
-Werkzeug==2.2.2
+Werkzeug==3.1.4
